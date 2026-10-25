@@ -8,44 +8,36 @@ feito em **Godot 4.3** (GDScript) para **Android**, na vertical e offline.
 
 ---
 
-## 1. Preparar o celular (sem computador)
+## 1. Instalar o jogo no celular (sem computador)
 
-### 1.1 Instalar o Godot 4.3 para Android
-A versão da Google Play é atualizada automaticamente para versões mais novas.
-Como o projeto usa a **4.3**, instale o APK oficial dessa versão:
+O APK é **compilado automaticamente** pelo GitHub a cada atualização da branch `main`
+(veja `.github/workflows/build-apk.yml`). Você só precisa baixar e instalar:
 
-1. No navegador do celular, abra:
-   `https://github.com/godotengine/godot/releases/tag/4.3-stable`
-2. Em **Assets**, toque em **`Godot_v4.3-stable_android_editor.apk`** (~200 MB).
-3. Abra o arquivo baixado. Se o Android pedir, permita **"Instalar apps desconhecidos"**
-   para o navegador (ou para o app de arquivos).
-4. Abra o **Godot Editor** e aceite a permissão de **acesso a todos os arquivos**
-   (o editor precisa dela para ler e salvar o projeto).
+1. No navegador do celular, abra a página do repositório no GitHub.
+2. Toque em **Releases** → **"Arrow Survival — APK mais recente"**.
+3. Em **Assets**, toque em **`ArrowSurvival.apk`** para baixar.
+4. Abra o arquivo baixado. Se o Android pedir, permita **"Instalar apps desconhecidos"**
+   para o navegador. Se o Play Protect avisar sobre app desconhecido, toque em
+   **Instalar mesmo assim** (isso acontece com qualquer APK fora da Play Store).
+5. Pronto: o ícone **Arrow Survival** aparece na lista de apps.
 
-> Dica: um teclado Bluetooth e um mouse ajudam muito, mas não são obrigatórios.
-> No editor, use dois dedos para dar zoom e arrastar a visão.
+**Atualizações:** baixe o APK novo e instale por cima. Todas as versões usam a mesma
+assinatura (`android/arrow_survival.keystore`) e um número de versão crescente,
+então o Android atualiza sem precisar desinstalar.
 
-### 1.2 Baixar o projeto
-1. No navegador, abra a página deste repositório no GitHub e escolha o branch do projeto.
-2. Toque em **Code → Download ZIP** (se o botão não aparecer, ative "Site para computador" no navegador).
-3. Abra o app **Arquivos** (por exemplo, *Files by Google*), toque no ZIP e escolha **Extrair**.
-4. Mova a pasta extraída para `Armazenamento interno/Documents/Godot/ArrowSurvival`
-   (evite a pasta `Android/data`, que o editor não consegue acessar).
+> A chave em `android/` é só para testes. Para publicar na Google Play (Etapa 6),
+> será criada uma chave de envio privada que **não** fica no repositório.
 
-### 1.3 Abrir o projeto no Godot
-1. No Godot, na tela **Gerenciador de Projetos**, toque em **Importar**.
-2. Navegue até `Documents/Godot/ArrowSurvival` e selecione o arquivo **`project.godot`**.
-3. Toque em **Importar e Editar**. Na primeira vez, o Godot cria a pasta oculta `.godot`
-   (cache); isso pode levar alguns segundos.
+### 1.1 (Opcional) Editar o projeto no próprio celular
+Se quiser abrir o projeto no editor, instale o **Godot 4.3 para Android**
+(`Godot_v4.3-stable_android_editor.apk`, em
+`https://github.com/godotengine/godot/releases/tag/4.3-stable`), baixe o código em
+**Code → Download ZIP**, extraia em `Documents/Godot/ArrowSurvival` e, no Godot,
+toque em **Importar** e selecione `project.godot`. O botão **▶** executa o jogo.
 
-### 1.4 Executar o jogo
-- Toque no botão **▶ (Executar Projeto)** no canto superior direito do editor.
-- O jogo abre em uma janela própria. Use o botão **Voltar** do Android
-  (ou o botão de parar ■ no editor) para retornar ao editor.
-
-### 1.5 Atualizar para uma nova etapa
-Quando novas etapas forem publicadas, baixe o ZIP novamente e substitua os arquivos
-na mesma pasta (pode apagar a pasta `.godot` se o editor reclamar de cache).
+### 1.2 Compilar o APK manualmente (opcional)
+`tools/build_apk.sh` gera `build/ArrowSurvival.apk` em qualquer Linux com Godot 4.3,
+export templates 4.3 e Android SDK configurados (é o mesmo script usado pelo GitHub).
 
 ---
 
@@ -79,6 +71,10 @@ scripts/
   background.gd        Céu, sol, morros e chão desenhados por código
 assets/
   images/, sounds/     Reservado para imagens e sons futuros
+export_presets.cfg     Configuração de exportação Android (APK)
+android/               Chave de assinatura do APK de teste
+tools/build_apk.sh     Script de compilação do APK
+.github/workflows/     Compilação automática do APK no GitHub
 ```
 
 Nenhuma imagem externa é usada: tudo é desenhado com `_draw()` (linhas, círculos e
