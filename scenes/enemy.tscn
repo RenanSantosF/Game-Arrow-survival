@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/stickman.gd" id="1_stickman"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_body"]
+radius = 22.0
+height = 172.0
+
+[node name="Enemy" type="Node2D"]
+script = ExtResource("1_stickman")
+body_color = Color(0.8, 0.12, 0.12, 1)
+bow_color = Color(0.25, 0.15, 0.08, 1)
+accessory_color = Color(0.2, 0.2, 0.2, 1)
+accessory = 2
+facing_left = true
+
+[node name="Hurtbox" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 0
+monitoring = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+position = Vector2(0, -86)
+shape = SubResource("CapsuleShape2D_body")

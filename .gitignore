@@ -1,0 +1,7 @@
+# Cache gerado pelo Godot (é recriado automaticamente)
+.godot/
+*.tmp
+# Arquivos de exportação
+*.apk
+*.aab
+export_credentials.cfg
