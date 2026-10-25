@@ -31,7 +31,7 @@ jobs:
           path: |
             ~/godot
             ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}-android
+          key: godot-${{ env.GODOT_VERSION }}-android-gradle-v2
 
       - name: Baixar Godot e export templates
         if: steps.cache-godot.outputs.cache-hit != 'true'
@@ -45,8 +45,21 @@ jobs:
           T=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
           mkdir -p "$T"
           unzip -q -j Godot_v${GODOT_VERSION}-stable_export_templates.tpz \
-            templates/android_debug.apk templates/android_release.apk templates/version.txt -d "$T"
+            templates/android_debug.apk templates/android_release.apk templates/android_source.zip \
+            templates/version.txt -d "$T"
           rm Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+
+      - name: Cache do Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('addons/admob/android/bin/**/*.gd') }}
+
+      - name: Instalar Android SDK 36 (exigido pelo plugin AdMob)
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;34.0.0" > /dev/null
 
       - name: Configurar Android SDK e Java no Godot
         run: |

@@ -1,171 +1,171 @@
 # Arrow Survival
 
 Jogo 2D de sobrevivência infinita com arco e flecha e personagens stickman,
-feito em **Godot 4.3** (GDScript) para **Android**, na vertical e offline.
+feito em **Godot 4.3** (GDScript) para **Android**, na vertical.
 
-> **Etapa atual: 1 — Protótipo básico** (cenário, jogador, um inimigo, mira por toque,
-> flechas com física e colisões). As próximas etapas serão adicionadas aos poucos.
+Os arqueiros ficam em **ilhotas flutuantes**. Quem morre cai da plataforma
+(com ragdoll, sangue estilizado e, às vezes, desmembramento). Os inimigos são
+substituídos por novos, cada vez mais rápidos, precisos e numerosos.
 
 ---
 
 ## 1. Instalar o jogo no celular (sem computador)
 
 O APK é **compilado automaticamente** pelo GitHub a cada atualização da branch `main`
-(veja `.github/workflows/build-apk.yml`). Você só precisa baixar e instalar:
+(arquivo `.github/workflows/build-apk.yml`). Basta baixar e instalar:
 
-1. No navegador do celular, abra a página do repositório no GitHub.
+1. No navegador do celular (logado no GitHub), abra a página do repositório.
 2. Toque em **Releases** → **"Arrow Survival — APK mais recente"**.
-3. Em **Assets**, toque em **`ArrowSurvival.apk`** para baixar.
-4. Abra o arquivo baixado. Se o Android pedir, permita **"Instalar apps desconhecidos"**
-   para o navegador. Se o Play Protect avisar sobre app desconhecido, toque em
-   **Instalar mesmo assim** (isso acontece com qualquer APK fora da Play Store).
-5. Pronto: o ícone **Arrow Survival** aparece na lista de apps.
+3. Em **Assets**, toque em **`ArrowSurvival.apk`**.
+4. Abra o arquivo baixado e instale. Se o Android pedir, permita
+   **"Instalar apps desconhecidos"**. Se o Play Protect avisar, toque em
+   **"Instalar mesmo assim"** (acontece com qualquer APK fora da Play Store).
 
-**Atualizações:** baixe o APK novo e instale por cima. Todas as versões usam a mesma
-assinatura (`android/arrow_survival.keystore`) e um número de versão crescente,
-então o Android atualiza sem precisar desinstalar.
-
-> A chave em `android/` é só para testes. Para publicar na Google Play (Etapa 6),
-> será criada uma chave de envio privada que **não** fica no repositório.
-
-### 1.1 (Opcional) Editar o projeto no próprio celular
-Se quiser abrir o projeto no editor, instale o **Godot 4.3 para Android**
-(`Godot_v4.3-stable_android_editor.apk`, em
-`https://github.com/godotengine/godot/releases/tag/4.3-stable`), baixe o código em
-**Code → Download ZIP**, extraia em `Documents/Godot/ArrowSurvival` e, no Godot,
-toque em **Importar** e selecione `project.godot`. O botão **▶** executa o jogo.
-
-### 1.2 Compilar o APK manualmente (opcional)
-`tools/build_apk.sh` gera `build/ArrowSurvival.apk` em qualquer Linux com Godot 4.3,
-export templates 4.3 e Android SDK configurados (é o mesmo script usado pelo GitHub).
+**Atualizações:** instale o APK novo por cima, sem desinstalar. Todas as versões usam
+a mesma assinatura de teste (`keystore/`) e um número de versão crescente.
 
 ---
 
-## 2. Como jogar (Etapa 1)
+## 2. Como jogar
 
-- **Toque** em qualquer lugar da tela, **arraste o dedo para trás** (para longe do inimigo)
-  e **solte** para atirar — como um estilingue.
-- Quanto mais longe você arrastar, mais forte é o disparo (até ~260 pixels).
-- Os pontinhos brancos mostram o começo da trajetória prevista.
-- Arrastes muito curtos cancelam o tiro.
-- O contador **Acertos** aumenta quando a flecha atinge o inimigo. A flecha fica presa
-  no corpo, o personagem pisca e balança, e depois a flecha some.
+| Ação | Como |
+|---|---|
+| Mirar e atirar | Toque, **arraste o dedo para trás** (como um estilingue) e solte. Quanto mais puxar, mais forte. |
+| Trocar de flecha | Toque nos ícones na barra de baixo (ou em **FLECHAS** no menu). |
+| Recuperar vida | Acerte a **maçã vermelha** que sobe do fundo da tela. |
+| Recuperar estamina | Acerte a **fruta-estrela amarela**. |
+| Pausar | Botão **II** no canto (ou o botão Voltar do Android). |
+
+- **Vida:** o jogador tem 150; os inimigos começam com 40 (aumenta aos poucos).
+- **Dano por região:** cabeça ×3 (×2,5 no jogador; elmo reduz para ×2), tronco ×1,
+  pernas ×0,7, braço ×0,6.
+- **Estamina:** cada flecha gasta estamina (número abaixo do ícone) e segurar o arco
+  puxado cansa. Cansado, o personagem ofega, a mira treme e o tiro sai fraco.
+  Ela se recupera sozinha quando você não está mirando.
+- **Pontos:** 10 por abate (15 caçador, 25 elite), **+15 na cabeça**, bônus de
+  **combo** para abates seguidos em até 2,5 s, +5 por fruta.
+- **Recorde** e **maior sequência** ficam salvos no aparelho.
+
+### Flechas desbloqueáveis (abates seguidos, sem morrer)
+
+| Flecha | Abates | Efeito | Estamina |
+|---|---:|---|---:|
+| Comum | 0 | — | 12 |
+| Veneno | 10 | Dano contínuo por 4 s | 14 |
+| Fogo | 20 | Queima por 3 s | 16 |
+| Gelo | 35 | Congela o inimigo (não atira) por 3 s | 16 |
+| Explosiva | 50 | Explosão em área | 24 |
+| Tripla | 75 | Três flechas de uma vez | 26 |
+
+Os valores ficam em `scripts/autoload/game_data.gd` (constante `ARROWS`).
+
+### Dificuldade infinita
+O nível cresce com os abates e com o tempo (`game.gd → difficulty_level()`):
+1 inimigo no começo → até 4 ao mesmo tempo; mira mais rápida e precisa; menos tempo
+entre tiros; mais vida; inimigos **caçadores** (capuz) e **elite** (elmo) aparecem depois.
+Os inimigos surgem só dentro de uma **área limite** à direita (`ENEMY_AREA`) e sempre
+afastados uns dos outros (`MIN_ENEMY_DISTANCE`).
 
 ---
 
-## 3. Estrutura do projeto
+## 3. Anúncios (AdMob)
+
+Implementados com o plugin **Poing Studios Godot AdMob v5.0.0** (`addons/admob`).
+Regras para não incomodar (`scripts/autoload/ads.gd`):
+
+- **Nunca** há anúncio ao abrir o app, nem anúncio obrigatório na **primeira sessão**
+  (a primeira vez que o jogo é aberto depois de instalado).
+- **Intersticial** só entre partidas (ao tocar em "Jogar de novo" ou "Menu"), no máximo
+  **a cada 3 partidas** e com pelo menos **150 s** entre um e outro. Partidas com menos
+  de 25 s não contam.
+- **Premiado (opcional):** na tela de derrota, "Continuar (ver anúncio)" revive o
+  jogador uma vez por partida, com 60% da vida, mantendo a sequência de abates.
+- **Sem banners.**
+
+> Por enquanto são usados os **IDs de TESTE** do Google (aparece "Test Ad").
+> Antes de publicar: crie o app no AdMob e troque `INTERSTITIAL_ID` e `REWARDED_ID`
+> em `ads.gd` e o **App ID** em `project.godot` (seção `[admob]`,
+> `general/android/app_id`). Isso será feito na Etapa 6.
+
+---
+
+## 4. Estrutura do projeto
 
 ```
-project.godot          Configurações (720x1280, vertical, renderizador Compatibility)
+project.godot                 Configurações (720x1280 vertical, Compatibility, autoloads)
+export_presets.cfg            Exportação Android (Gradle, arm64 + armv7)
 scenes/
-  main.tscn            Cena principal: cenário, chão, jogador, inimigo, flechas e HUD
-  player.tscn          Jogador stickman (azul, bandana)
-  enemy.tscn           Inimigo stickman (vermelho, chapéu)
-  arrow.tscn           Flecha
+  menu.tscn                   Menu inicial
+  game.tscn                   Partida
 scripts/
-  main.gd              Cria flechas, limita a quantidade e conta acertos
-  stickman.gd          Desenho, animação e reação a impacto de qualquer stickman
-  player.gd            Mira por toque e disparo (herda de stickman.gd)
-  aim_guide.gd         Desenha a mira e a trajetória prevista
-  arrow.gd             Física da flecha (gravidade + raio de colisão) e fixação no alvo
-  background.gd        Céu, sol, morros e chão desenhados por código
-assets/
-  images/, sounds/     Reservado para imagens e sons futuros
-export_presets.cfg     Configuração de exportação Android (APK)
-android/               Chave de assinatura do APK de teste
-tools/build_apk.sh     Script de compilação do APK
-.github/workflows/     Compilação automática do APK no GitHub
+  autoload/
+    game_data.gd              Flechas, recorde, desbloqueios e opções salvos (user://save.cfg)
+    sfx.gd                    Efeitos sonoros sintetizados por código (sem arquivos de áudio)
+    ads.gd                    Anúncios e regras de frequência
+  game/
+    game.gd                   Partida: surgimento, dificuldade, frutas, pontos, derrota, reviver
+    stickman.gd               Stickman: desenho, animação, zonas de acerto, status, morte
+    player_archer.gd          Jogador: mira por toque, estamina
+    enemy_archer.gd           Inimigo: IA que mira (balística) e atira
+    ragdoll.gd                Corpo caindo (física Verlet) com desmembramento
+    arrow.gd / arrow_draw.gd  Flecha: física, rastro, efeitos e desenho
+    floating_platform.gd      Ilhota flutuante (entra, balança, desmorona)
+    fruit.gd                  Frutas de vida e estamina
+    fx.gd                     Partículas (sangue, suco, faíscas, explosão) e textos
+    aim_guide.gd              Mira e trajetória prevista
+    background.gd             Céu, sol, montanhas, névoa e nuvens animadas
+  menu/
+    menu.gd                   Menu com duelo de stickmen ao fundo
+    title_logo.gd             Título animado
+    arrow_select_panel.gd     Escolha de flechas
+  ui/
+    ui_kit.gd                 Botões, painéis e transições no mesmo estilo
+    game_hud.gd               HUD da partida
+    stat_bar.gd               Barras animadas de vida/estamina
+    arrow_icon.gd             Ícone de cada flecha
+    pause_panel.gd            Pausa
+    game_over_panel.gd        Tela de derrota
+addons/admob/                 Plugin AdMob (Poing Studios, licença MIT)
+keystore/                     Chave de assinatura do APK de TESTE
+tools/build_apk.sh            Script de compilação do APK (usado pelo GitHub)
+.github/workflows/            Compilação automática do APK
 ```
 
-Nenhuma imagem externa é usada: tudo é desenhado com `_draw()` (linhas, círculos e
-polígonos), o que deixa o jogo leve.
+Nenhuma imagem ou som externo: tudo é desenhado com `_draw()` e os sons são gerados
+por código, o que deixa o jogo leve e 100% offline (exceto os anúncios).
 
-### 3.1 Árvore de nós de cada cena
-
-**main.tscn**
-```
-Main (Node2D) ← scripts/main.gd   [arrow_scene = scenes/arrow.tscn]
-├── Background (Node2D) ← scripts/background.gd   [z_index = -10]
-├── Ground (StaticBody2D)   [position = (360, 1600), camada 1 "mundo"]
-│   └── CollisionShape2D   [RectangleShape2D 4000 x 1200 → topo do chão em y = 1000]
-├── Player (instância de player.tscn)   [position = (120, 1000)]
-├── Enemy (instância de enemy.tscn)     [position = (600, 1000)]
-├── Arrows (Node2D)   ← onde as flechas são criadas
-└── HUD (CanvasLayer)
-    ├── Title (Label)      "ARROW SURVIVAL"
-    ├── HitsLabel (Label)  "Acertos: 0"
-    └── HintLabel (Label)  instrução de como atirar
-```
-
-**player.tscn**
-```
-Player (Node2D) ← scripts/player.gd
-├── Hurtbox (Area2D)   [collision_layer = 2 "jogador", mask = nenhuma, monitoring = desligado]
-│   └── CollisionShape2D   [CapsuleShape2D raio 22, altura 172, position = (0, -86)]
-└── AimGuide (Node2D) ← scripts/aim_guide.gd
-```
-
-**enemy.tscn**
-```
-Enemy (Node2D) ← scripts/stickman.gd   [facing_left = ligado, cor vermelha, accessory = HAT]
-└── Hurtbox (Area2D)   [collision_layer = 3 "inimigo" (valor 4), mask = nenhuma]
-    └── CollisionShape2D   [igual ao do jogador]
-```
-
-**arrow.tscn**
-```
-Arrow (Node2D) ← scripts/arrow.gd
-```
-
-### 3.2 Como criar uma cena/nó manualmente (para aprender)
-Os arquivos já vêm prontos, mas é assim que se cria algo do zero no editor:
-1. **Cena → Nova Cena**, escolha **Outro Nó** e procure o tipo (ex.: `Node2D`).
-2. Para adicionar filhos, selecione o nó e toque em **+** (Adicionar Nó Filho).
-3. Para anexar um script, selecione o nó e toque no ícone de **pergaminho** (Anexar Script),
-   ou arraste o arquivo `.gd` do painel **Sistema de Arquivos** até o nó.
-4. Propriedades (posição, camadas de colisão, formas) ficam no painel **Inspetor**.
-5. Para usar uma cena dentro de outra (ex.: Player dentro de Main), use o ícone de
-   **corrente** (Instanciar Cena Filha).
-6. Salve com **Cena → Salvar Cena** na pasta `scenes/`.
-
-### 3.3 Camadas de física
-| Camada | Nome     | Quem usa                        |
-|-------:|----------|---------------------------------|
-| 1      | mundo    | chão (`Ground`)                 |
-| 2      | jogador  | `Hurtbox` do jogador            |
-| 3      | inimigo  | `Hurtbox` dos inimigos          |
-
-As flechas do jogador usam a máscara `1 + 3` (valor 5): acertam o chão e os inimigos,
-nunca o próprio jogador.
+### Camadas de física
+| Camada | Valor | Uso |
+|---:|---:|---|
+| 1 | 1 | Plataformas (mundo) |
+| 2 | 2 | Zonas de acerto do jogador |
+| 3 | 4 | Zonas de acerto dos inimigos |
+| 6 | 32 | Frutas |
 
 ---
 
-## 4. Decisões técnicas da Etapa 1
-
-- **Flecha sem RigidBody:** a flecha calcula velocidade e gravidade por conta própria e,
-  a cada quadro de física, usa `PhysicsDirectSpaceState2D.intersect_ray()` entre a posição
-  anterior e a nova. Isso evita que flechas rápidas atravessem o alvo e é mais barato que
-  corpos rígidos no celular.
-- **Flecha presa:** ao acertar uma `Area2D` de personagem, a flecha vira filha dela
-  (`reparent()`), então acompanha o corpo. Depois de 5 s ela desaparece gradualmente.
-- **Limite de objetos:** no máximo 30 flechas ao mesmo tempo; as mais antigas são removidas.
-- **Renderizador Compatibility (OpenGL):** o mais leve e compatível com celulares modestos.
-- **Tela:** base 720 x 1280, `stretch = canvas_items`, `aspect = keep_width`
-  (a largura é fixa; celulares mais altos mostram mais chão embaixo).
-- **Teste no computador (opcional):** `emulate_touch_from_mouse` está ativado, então o mouse
-  também funciona como dedo.
-
-### Ajustes fáceis (no Inspetor do nó Player)
-`min_speed`, `max_speed` (força do tiro), `max_drag` (quanto arrastar para força máxima),
-`cooldown` (intervalo entre tiros), `min_angle`/`max_angle` (limites da mira).
+## 5. Desempenho
+- Flechas sem RigidBody: velocidade + gravidade e um raio por quadro (`intersect_ray`).
+- Ragdoll em Verlet (sem física pesada), removido ao sair da tela ou após 6 s.
+- Limites: 45 flechas, 420 partículas, 12 textos flutuantes; flechas presas somem em 4 s.
+- Renderizador Compatibility (OpenGL), o mais leve para celulares modestos.
 
 ---
 
-## 5. Roteiro
+## 6. Compilar o APK manualmente (opcional)
+`tools/build_apk.sh` gera `build/ArrowSurvival.apk` num Linux com Godot 4.3, export
+templates 4.3, JDK 17 e Android SDK (plataforma 36). Ele instala o *Android Build
+Template* em `android/build` e ajusta o `compileSdk` para 36, exigido pelo plugin AdMob.
 
-- [x] **Etapa 1** — Protótipo: cenário, stickmen, mira por toque, flechas físicas, colisões
-- [ ] **Etapa 2** — Combate: inimigos que atiram, vida, dano e eliminação
-- [ ] **Etapa 3** — Impactos: cabeça/tronco/membros, sangue estilizado, reações, desmembramento
-- [ ] **Etapa 4** — Sobrevivência: pontuação, recorde salvo, novos inimigos, dificuldade progressiva
-- [ ] **Etapa 5** — Finalização: menu, tela de derrota, sons, otimização
-- [ ] **Etapa 6** — Publicação: exportar APK/AAB e preparar para a Google Play
+---
+
+## 7. Roteiro
+
+- [x] **Etapa 1** — Protótipo: cenário, stickmen, mira por toque, flechas físicas
+- [x] **Etapa 2** — Combate: inimigos que atiram, vida, dano e eliminação
+- [x] **Etapa 3** — Impactos: zonas de acerto, sangue, reações, ragdoll e desmembramento
+- [x] **Etapa 4** — Sobrevivência: pontos, recorde salvo, surgimento em área limite, dificuldade
+- [x] **Etapa 5** — Menu animado, escolha de flechas, pausa, derrota, sons, frutas, estamina
+- [x] Anúncios com IDs de teste (intersticial espaçado + premiado opcional)
+- [ ] **Etapa 6** — Publicação: conta AdMob real, chave de envio privada, AAB, consentimento
+      (UMP/LGPD/GDPR), ficha da Play Store e testes fechados

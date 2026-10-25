@@ -6,3 +6,8 @@
 *.aab
 export_credentials.cfg
 build/
+
+# Android Build Template (instalado pelo tools/build_apk.sh)
+/android/
+# Testes locais
+/_test/

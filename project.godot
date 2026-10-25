@@ -1,5 +1,10 @@
-; Arquivo de configuração do projeto Godot 4.3.
-; Normalmente ele é editado pelo próprio editor (Projeto > Configurações do Projeto).
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
 
@@ -7,9 +12,16 @@ config_version=5
 
 config/name="Arrow Survival"
 config/description="Sobrevivência infinita com arco e flecha e stickmen."
-run/main_scene="res://scenes/main.tscn"
-config/icon="res://icon.svg"
+run/main_scene="res://scenes/menu.tscn"
+config/quit_on_go_back=false
 config/features=PackedStringArray("4.3", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[autoload]
+
+GameData="*res://scripts/autoload/game_data.gd"
+Sfx="*res://scripts/autoload/sfx.gd"
+Ads="*res://scripts/autoload/ads.gd"
 
 [display]
 
@@ -18,6 +30,10 @@ window/size/viewport_height=1280
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep_width"
 window/handheld/orientation=1
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/admob/plugin.cfg")
 
 [input_devices]
 
@@ -28,6 +44,7 @@ pointing/emulate_touch_from_mouse=true
 2d_physics/layer_1="mundo"
 2d_physics/layer_2="jogador"
 2d_physics/layer_3="inimigo"
+2d_physics/layer_6="fruta"
 
 [rendering]
 
