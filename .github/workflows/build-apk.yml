@@ -50,12 +50,16 @@ jobs:
 
       - name: Configurar Android SDK e Java no Godot
         run: |
-          GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
-          $GODOT --headless --quit >/dev/null 2>&1 || true
-          S=~/.config/godot/editor_settings-${GODOT_VERSION}.tres
-          sed -i "s#^export/android/android_sdk_path = .*#export/android/android_sdk_path = \"$ANDROID_HOME\"#" "$S"
-          sed -i "s#^export/android/java_sdk_path = .*#export/android/java_sdk_path = \"$JAVA_HOME\"#" "$S"
-          grep "export/android/android_sdk_path\|export/android/java_sdk_path" "$S"
+          mkdir -p ~/.config/godot
+          cat > ~/.config/godot/editor_settings-${GODOT_VERSION}.tres <<EOT
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          EOT
+          sed -i 's/^ *//' ~/.config/godot/editor_settings-${GODOT_VERSION}.tres
+          cat ~/.config/godot/editor_settings-${GODOT_VERSION}.tres
 
       - name: Compilar APK
         run: |
