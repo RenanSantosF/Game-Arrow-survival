@@ -14,6 +14,8 @@ static var instance: Fx = null
 
 var _p: Array[Particle] = []
 var _texts: Array[FloatText] = []
+## Raios: [pontos, cor, vida, vida máxima]
+var _bolts: Array = []
 var _font: Font
 
 
@@ -87,6 +89,20 @@ static func explosion(pos: Vector2, radius: float) -> void:
 	smoke(pos, 12, Color(0.35, 0.33, 0.32, 0.7), 26.0)
 
 
+## Raio elétrico em zigue-zague entre dois pontos.
+static func bolt(from: Vector2, to: Vector2, color := Color(1, 0.95, 0.5), life := 0.25) -> void:
+	if instance == null:
+		return
+	var pts := PackedVector2Array([from])
+	var normal := (to - from).orthogonal().normalized()
+	var steps := 7
+	for i in range(1, steps):
+		pts.append(from.lerp(to, float(i) / steps) + normal * randf_range(-18.0, 18.0))
+	pts.append(to)
+	instance._bolts.append([pts, color, life, life])
+	burst(to, Vector2.UP, 6, color, 260.0, PI, 2.5, 600.0, 0.3, Kind.SPARK)
+
+
 static func text(pos: Vector2, msg: String, color := Color.WHITE, size := 34, life := 1.0) -> void:
 	if instance == null:
 		return
@@ -131,6 +147,12 @@ func _process(delta: float) -> void:
 			p.vel *= 1.0 - minf(delta * 2.5, 1.0)
 		p.pos += p.vel * delta
 		i += 1
+	var b := _bolts.size() - 1
+	while b >= 0:
+		_bolts[b][2] -= delta
+		if _bolts[b][2] <= 0.0:
+			_bolts.remove_at(b)
+		b -= 1
 	var j := 0
 	while j < _texts.size():
 		var t := _texts[j]
@@ -165,6 +187,11 @@ func _draw() -> void:
 				var s := p.size
 				draw_line(p.pos - Vector2(s, 0), p.pos + Vector2(s, 0), c, 2.0)
 				draw_line(p.pos - Vector2(0, s), p.pos + Vector2(0, s), c, 2.0)
+	for bolt_data in _bolts:
+		var k: float = bolt_data[2] / bolt_data[3]
+		var col: Color = bolt_data[1]
+		draw_polyline(bolt_data[0], Color(col, 0.35 * k), 12.0 * k + 2.0, true)
+		draw_polyline(bolt_data[0], Color(1, 1, 1, k), 3.0, true)
 	for t in _texts:
 		var k := t.life / t.max_life
 		var scale_in := minf((1.0 - k) * 8.0, 1.0)

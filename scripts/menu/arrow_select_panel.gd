@@ -18,21 +18,22 @@ func _ready() -> void:
 	var panel := UiKit.make_panel()
 	center.add_child(panel)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 16)
+	box.add_theme_constant_override("separation", 12)
 	panel.add_child(box)
 
 	box.add_child(UiKit.make_label("ESCOLHA SUA FLECHA", 44, UiKit.GOLD, 10))
 	box.add_child(UiKit.make_label("Desbloqueie novas flechas abatendo\ninimigos seguidos, sem morrer!", 22, Color(0.85, 0.9, 1), 5))
 
 	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 14)
-	grid.add_theme_constant_override("v_separation", 14)
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
 	box.add_child(grid)
 	for def in GameData.ARROWS:
 		grid.add_child(_make_card(def))
 
-	var done := UiKit.make_button("PRONTO", Color(0.2, 0.7, 0.3))
+	var done := UiKit.make_button("PRONTO", Color(0.2, 0.7, 0.3), 38, Vector2(380, 84))
+	done.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	done.pressed.connect(func() -> void:
 		closed.emit()
 		queue_free())
@@ -46,7 +47,7 @@ func _make_card(def: Dictionary) -> Button:
 	var id: String = def["id"]
 	var unlocked := GameData.is_unlocked(id)
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(300, 214)
+	b.custom_minimum_size = Vector2(196, 196)
 	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_stylebox_override("normal", UiKit.make_style(Color(0.16, 0.2, 0.32), 20, 3, Color(1, 1, 1, 0.2)))
 	b.add_theme_stylebox_override("hover", UiKit.make_style(Color(0.2, 0.24, 0.38), 20, 3, Color(1, 1, 1, 0.3)))
@@ -63,13 +64,13 @@ func _make_card(def: Dictionary) -> Button:
 
 	var icon := ArrowIcon.new(id)
 	icon.locked = not unlocked
-	icon.custom_minimum_size = Vector2(96, 96)
+	icon.custom_minimum_size = Vector2(72, 72)
 	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(icon)
-	v.add_child(UiKit.make_label(def["name"], 30, Color.WHITE if unlocked else Color(0.6, 0.6, 0.65), 6))
-	var desc := UiKit.make_label(def["desc"] if unlocked else "Faça %d abates seguidos" % def["unlock"], 18, Color(0.8, 0.85, 0.95) if unlocked else Color(0.95, 0.75, 0.4), 4)
+	v.add_child(UiKit.make_label(def["name"], 24, Color.WHITE if unlocked else Color(0.6, 0.6, 0.65), 6))
+	var desc := UiKit.make_label(def["desc"] if unlocked else "Faça %d abates\nseguidos" % def["unlock"], 15, Color(0.8, 0.85, 0.95) if unlocked else Color(0.95, 0.75, 0.4), 4)
 	v.add_child(desc)
-	var status := UiKit.make_label("", 20, UiKit.GOLD, 5)
+	var status := UiKit.make_label("", 16, UiKit.GOLD, 5)
 	v.add_child(status)
 
 	b.pressed.connect(func() -> void:

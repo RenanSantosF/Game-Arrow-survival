@@ -11,6 +11,9 @@ const PENETRATION := 14.0
 const STUCK_LIFETIME := 4.0
 const FADE_TIME := 0.5
 const MAX_FLIGHT_TIME := 5.0
+## Velocidade de curva da flecha teleguiada (radianos por segundo).
+const HOMING_TURN := 2.8
+const HOMING_RANGE := 520.0
 
 const LAYER_WORLD := 1
 const LAYER_PLAYER := 2
@@ -32,6 +35,8 @@ var _stuck := false
 var _timer := 0.0
 var _trail_timer := 0.0
 var _burn_left := 0.0
+## Quantos inimigos a flecha perfurante ainda pode atravessar.
+var _pierce_left := 0
 
 
 func launch(start: Vector2, initial_velocity: Vector2, arrow_def: Dictionary, arrow_damage: float, is_player: bool) -> void:
@@ -39,6 +44,7 @@ func launch(start: Vector2, initial_velocity: Vector2, arrow_def: Dictionary, ar
 	damage = arrow_damage
 	from_player = is_player
 	collision_mask = PLAYER_MASK if is_player else ENEMY_MASK
+	_pierce_left = 2 if def["id"] == "pierce" else 0
 	global_position = start
 	velocity = initial_velocity
 	global_rotation = velocity.angle()
@@ -59,6 +65,8 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var from := global_position
+	if def["id"] == "homing" and from_player and _timer > 0.12:
+		_steer(delta)
 	velocity.y += GRAVITY * delta
 	var to := from + velocity * delta
 
@@ -77,11 +85,26 @@ func _physics_process(delta: float) -> void:
 		elif collider is Area2D and collider.has_meta("stickman"):
 			var stickman: Stickman = collider.get_meta("stickman")
 			if is_instance_valid(stickman) and stickman.can_be_hit():
-				_stick(result)
-				return
-			# Alvo invulnerável (piscando): a flecha passa direto.
-			for rid in stickman.get_hit_rids():
-				_exclude.append(rid)
+				if _pierce_left <= 0:
+					_stick(result)
+					return
+				# Perfurante: atravessa o escudo sem parar e fere o corpo sem ficar presa.
+				var zone: String = collider.get_meta("zone")
+				if zone == "shield":
+					Sfx.play("shield", -6.0)
+					Fx.sparks(result["position"], -velocity.normalized(), 6)
+					_exclude.append((collider as Area2D).get_rid())
+				else:
+					var rids := stickman.get_hit_rids()
+					stickman.receive_arrow(self, zone, result["position"], velocity)
+					_pierce_left -= 1
+					velocity *= 0.85
+					_exclude.append_array(rids)
+			elif is_instance_valid(stickman):
+				# Alvo invulnerável (piscando): a flecha passa direto.
+				_exclude.append_array(stickman.get_hit_rids())
+			else:
+				_exclude.append((collider as Area2D).get_rid())
 		else:
 			_stick(result)
 			return
@@ -89,6 +112,31 @@ func _physics_process(delta: float) -> void:
 	global_position = to
 	global_rotation = velocity.angle()
 	_emit_trail(delta)
+
+
+## Teleguiada: vira devagar na direção do inimigo vivo mais próximo à frente.
+func _steer(delta: float) -> void:
+	if Game.instance == null:
+		return
+	var best: Stickman = null
+	var best_d := HOMING_RANGE
+	var dir := velocity.normalized()
+	for e in Game.instance.enemies:
+		if not is_instance_valid(e) or not e.alive:
+			continue
+		var to_e: Vector2 = e.get_chest_global() - global_position
+		var d := to_e.length()
+		if d < best_d and dir.dot(to_e / maxf(d, 0.001)) > 0.2:
+			best_d = d
+			best = e
+	if best == null:
+		return
+	var desired := (best.get_chest_global() - global_position).angle()
+	var current := velocity.angle()
+	var diff := wrapf(desired - current, -PI, PI)
+	var turn := clampf(diff, -HOMING_TURN * delta, HOMING_TURN * delta)
+	# Compensa a gravidade para a curva não "despencar".
+	velocity = velocity.rotated(turn) - Vector2(0, GRAVITY * delta * 0.7)
 
 
 func _emit_trail(delta: float) -> void:

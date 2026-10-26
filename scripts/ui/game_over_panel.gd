@@ -9,6 +9,9 @@ signal menu_pressed
 var score := 0
 var kills := 0
 var headshots := 0
+var wave := 0
+var era_name := ""
+var coins := 0
 var seconds := 0.0
 var is_record := false
 var can_revive := false
@@ -51,8 +54,10 @@ func _ready() -> void:
 	else:
 		box.add_child(UiKit.make_label("Recorde: %d" % GameData.best_score, 32, UiKit.GOLD, 8))
 
+	box.add_child(UiKit.make_label("Onda %d  •  %s" % [wave, era_name], 30, Color(0.7, 0.9, 1.0), 7))
 	var stats := "Abates seguidos: %d   •   Na cabeça: %d\nTempo: %d:%02d" % [kills, headshots, int(seconds) / 60, int(seconds) % 60]
 	box.add_child(UiKit.make_label(stats, 24, Color(0.85, 0.9, 1.0), 6))
+	box.add_child(UiKit.make_label("+%d moedas  (total: %d)" % [coins, GameData.coins], 28, UiKit.GOLD, 7))
 	for def in new_arrows:
 		box.add_child(UiKit.make_label("Flecha desbloqueada: %s!" % def["name"], 26, Color(0.6, 1, 0.5), 6))
 

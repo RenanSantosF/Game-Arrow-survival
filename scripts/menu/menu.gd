@@ -1,6 +1,7 @@
 extends Node2D
 ## Menu inicial: título animado, duelo de stickmen ao fundo, botão JOGAR,
-## escolha de flechas, recorde e opção de som. Nunca mostra anúncio.
+## escolha de flechas, melhorias do personagem, recorde e opção de som.
+## Nunca mostra anúncio.
 
 const LEFT_SPOT := Vector2(135, 700)
 const RIGHT_SPOT := Vector2(585, 640)
@@ -14,6 +15,7 @@ var _left_turn := true
 var _shooter: Stickman = null
 var _draw_time := 0.0
 var _sound_button: Button
+var _coins_label: Label
 
 
 func _ready() -> void:
@@ -56,14 +58,18 @@ func _build_ui() -> void:
 	UiKit.anchor(logo, Control.PRESET_CENTER_TOP, -360, 70, 360, 330)
 	root.add_child(logo)
 
-	var rec_text := "Recorde: %d   •   Maior sequência: %d" % [GameData.best_score, GameData.best_kills]
+	var rec_text := "Recorde: %d   •   Melhor onda: %d" % [GameData.best_score, GameData.best_wave]
 	var rec := UiKit.make_label(rec_text, 26, Color(1, 0.92, 0.7), 7)
 	UiKit.anchor(rec, Control.PRESET_CENTER_TOP, -340, 340, 340, 380)
 	root.add_child(rec)
+	_coins_label = UiKit.make_label("", 28, UiKit.GOLD, 7)
+	UiKit.anchor(_coins_label, Control.PRESET_CENTER_TOP, -340, 382, 340, 420)
+	root.add_child(_coins_label)
+	_refresh_coins()
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 20)
-	UiKit.anchor(box, Control.PRESET_CENTER_BOTTOM, -230, -470, 230, -90)
+	box.add_theme_constant_override("separation", 18)
+	UiKit.anchor(box, Control.PRESET_CENTER_BOTTOM, -230, -570, 230, -90)
 	box.alignment = BoxContainer.ALIGNMENT_END
 	root.add_child(box)
 
@@ -74,6 +80,10 @@ func _build_ui() -> void:
 	var arrows := UiKit.make_button("FLECHAS", Color(0.45, 0.3, 0.8), 38, Vector2(460, 96))
 	arrows.pressed.connect(_on_arrows)
 	box.add_child(arrows)
+
+	var upgrades := UiKit.make_button("MELHORIAS", Color(0.15, 0.6, 0.45), 38, Vector2(460, 96))
+	upgrades.pressed.connect(_on_upgrades)
+	box.add_child(upgrades)
 
 	_sound_button = UiKit.make_button(_sound_text(), Color(0.22, 0.45, 0.75), 30, Vector2(460, 80))
 	_sound_button.pressed.connect(func() -> void:
@@ -88,7 +98,7 @@ func _build_ui() -> void:
 	# Entrada animada dos botões e pulsação do JOGAR.
 	await get_tree().process_frame
 	var delay := 0.9
-	for b in [play, arrows, _sound_button]:
+	for b in [play, arrows, upgrades, _sound_button]:
 		UiKit.pop_in(b, delay)
 		delay += 0.12
 	var pulse := play.create_tween().set_loops()
@@ -104,6 +114,16 @@ func _sound_text() -> String:
 func _on_play() -> void:
 	Sfx.play("unlock", -6.0)
 	UiKit.fade_to_scene(self, "res://scenes/game.tscn")
+
+
+func _refresh_coins() -> void:
+	_coins_label.text = "Moedas: %d" % GameData.coins
+
+
+func _on_upgrades() -> void:
+	var panel := UpgradePanel.new()
+	panel.closed.connect(_refresh_coins)
+	_ui.add_child(panel)
 
 
 func _on_arrows() -> void:

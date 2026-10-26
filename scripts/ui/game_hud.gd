@@ -1,7 +1,7 @@
 class_name GameHud
 extends CanvasLayer
-## Interface durante a partida: vida, estamina, pontuação, botão de pausa,
-## seletor de flechas e avisos animados (desbloqueios, combos).
+## Interface durante a partida: vida, estamina, pontuação, moedas, onda e era,
+## barra de vida do chefe, botão de pausa, seletor de flechas e avisos animados.
 
 signal pause_pressed
 
@@ -15,7 +15,17 @@ var _best_label: Label
 var _next_label: Label
 var _pause_button: Button
 var _arrow_bar: PanelContainer
+var _arrow_scroll: ScrollContainer
 var _arrow_box: HBoxContainer
+var _coins_label: Label
+var _wave_label: Label
+var _era_label: Label
+var _boss_box: VBoxContainer
+var _boss_name: Label
+var _boss_bar: BossBar
+var _kills := 0
+var _wave_left := 0
+var _wave_total := 0
 var _arrow_buttons := {}
 var _banner: PanelContainer
 var _banner_label: Label
@@ -23,6 +33,26 @@ var _vignette: ColorRect
 var _blockers: Array[Control] = []
 var _shown_score := 0.0
 var _target_score := 0
+
+
+## Barra de vida do chefe (vermelha) com a resistência do escudo (azul) por cima.
+class BossBar:
+	extends Control
+	var ratio := 1.0
+	var shown := 1.0
+	var shield := 0.0
+
+	func _process(delta: float) -> void:
+		shown = move_toward(shown, ratio, delta * 0.8)
+		queue_redraw()
+
+	func _draw() -> void:
+		var r := Rect2(Vector2.ZERO, size)
+		draw_rect(r.grow(3.0), Color(0.05, 0.05, 0.1, 0.85))
+		draw_rect(Rect2(r.position, Vector2(size.x * shown, size.y)), Color(1, 0.85, 0.6))
+		draw_rect(Rect2(r.position, Vector2(size.x * ratio, size.y)), Color(0.85, 0.12, 0.15))
+		if shield > 0.0:
+			draw_rect(Rect2(r.position + Vector2(0, size.y - 7), Vector2(size.x * shield, 7)), Color(0.45, 0.75, 1.0))
 
 
 func _ready() -> void:
@@ -49,6 +79,18 @@ func _ready() -> void:
 	bars.add_child(hp_bar)
 	bars.add_child(stamina_bar)
 
+	_coins_label = UiKit.make_label("0", 26, UiKit.GOLD, 6)
+	_coins_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	UiKit.anchor(_coins_label, Control.PRESET_TOP_LEFT, 22, 108, 260, 140)
+	_root.add_child(_coins_label)
+
+	_wave_label = UiKit.make_label("", 36, Color.WHITE, 8)
+	UiKit.anchor(_wave_label, Control.PRESET_TOP_LEFT, 278, 16, 606, 60)
+	_root.add_child(_wave_label)
+	_era_label = UiKit.make_label("", 20, Color(0.75, 0.9, 1.0), 5)
+	UiKit.anchor(_era_label, Control.PRESET_TOP_LEFT, 278, 58, 606, 86)
+	_root.add_child(_era_label)
+
 	_score_label = UiKit.make_label("0", 64, Color.WHITE, 12)
 	UiKit.anchor(_score_label, Control.PRESET_CENTER_TOP, -120, 104, 120, 184)
 	_score_label.pivot_offset = Vector2(120, 40)
@@ -74,17 +116,36 @@ func _ready() -> void:
 	_arrow_bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_arrow_bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_root.add_child(_arrow_bar)
+	# Com muitas flechas a barra rola para o lado (arraste com o dedo).
+	_arrow_scroll = ScrollContainer.new()
+	_arrow_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_arrow_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_arrow_scroll.scroll_deadzone = 14
+	_arrow_bar.add_child(_arrow_scroll)
 	_arrow_box = HBoxContainer.new()
-	_arrow_box.add_theme_constant_override("separation", 10)
-	_arrow_bar.add_child(_arrow_box)
+	_arrow_box.add_theme_constant_override("separation", 8)
+	_arrow_scroll.add_child(_arrow_box)
 	_blockers.append(_arrow_bar)
 
 	_next_label = UiKit.make_label("", 22, Color(1, 1, 1, 0.9), 6)
 	UiKit.anchor(_next_label, Control.PRESET_BOTTOM_WIDE, 0, -196, 0, -164)
 	_root.add_child(_next_label)
 
+	_boss_box = VBoxContainer.new()
+	_boss_box.add_theme_constant_override("separation", 4)
+	UiKit.anchor(_boss_box, Control.PRESET_CENTER_TOP, -230, 220, 230, 290)
+	_boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_box.visible = false
+	_root.add_child(_boss_box)
+	_boss_name = UiKit.make_label("", 26, Color(1, 0.55, 0.45), 7)
+	_boss_box.add_child(_boss_name)
+	_boss_bar = BossBar.new()
+	_boss_bar.custom_minimum_size = Vector2(460, 22)
+	_boss_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_box.add_child(_boss_bar)
+
 	_banner = UiKit.make_panel(Color(0.35, 0.2, 0.05, 0.92))
-	UiKit.anchor(_banner, Control.PRESET_CENTER_TOP, 0, 250, 0, 250)
+	UiKit.anchor(_banner, Control.PRESET_CENTER_TOP, 0, 310, 0, 310)
 	_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_banner.visible = false
 	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -112,7 +173,7 @@ func rebuild_arrow_bar() -> void:
 			continue
 		var id: String = def["id"]
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(92, 104)
+		b.custom_minimum_size = Vector2(84, 100)
 		b.focus_mode = Control.FOCUS_NONE
 		b.flat = true
 		var icon := ArrowIcon.new(id)
@@ -130,6 +191,7 @@ func rebuild_arrow_bar() -> void:
 		_arrow_box.add_child(b)
 		_arrow_buttons[id] = icon
 	_arrow_bar.visible = _arrow_buttons.size() > 1
+	_arrow_scroll.custom_minimum_size = Vector2(minf(_arrow_buttons.size() * 92.0 - 8.0, 620.0), 100)
 	_refresh_arrow_selection()
 
 
@@ -144,7 +206,8 @@ func set_score(score: int, kills: int) -> void:
 		tw.tween_property(_score_label, "scale", Vector2(1.35, 1.35), 0.08)
 		tw.tween_property(_score_label, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_target_score = score
-	_kills_label.text = "Abates seguidos: %d" % kills
+	_kills = kills
+	_refresh_kills_label()
 	if score > GameData.best_score and GameData.best_score > 0:
 		_best_label.text = "NOVO RECORDE!"
 		_best_label.add_theme_color_override("font_color", UiKit.GOLD)
@@ -153,6 +216,47 @@ func set_score(score: int, kills: int) -> void:
 		_next_label.text = ""
 	else:
 		_next_label.text = "Próxima flecha: %s em %d abates" % [next["name"], int(next["unlock"]) - kills]
+
+
+func _refresh_kills_label() -> void:
+	if _wave_left > 0:
+		_kills_label.text = "Abates: %d   •   Restam: %d" % [_kills, _wave_left]
+	else:
+		_kills_label.text = "Abates seguidos: %d" % _kills
+
+
+func set_coins(run_coins: int) -> void:
+	_coins_label.text = "Moedas: +%d" % run_coins
+
+
+func set_wave(wave: int, era_name: String, left: int, total: int) -> void:
+	_wave_label.text = "ONDA %d" % wave if wave > 0 else ""
+	_era_label.text = era_name if wave > 0 else ""
+	_wave_left = left
+	_wave_total = total
+	_refresh_kills_label()
+
+
+func show_boss(boss_name: String) -> void:
+	_boss_name.text = boss_name
+	_boss_bar.ratio = 1.0
+	_boss_bar.shown = 1.0
+	_boss_box.visible = true
+	_boss_box.modulate.a = 0.0
+	_boss_box.create_tween().tween_property(_boss_box, "modulate:a", 1.0, 0.5)
+
+
+func set_boss_hp(ratio: float, shield_ratio: float) -> void:
+	_boss_bar.ratio = clampf(ratio, 0.0, 1.0)
+	_boss_bar.shield = clampf(shield_ratio, 0.0, 1.0)
+
+
+func hide_boss() -> void:
+	_boss_bar.ratio = 0.0
+	var tw := _boss_box.create_tween()
+	tw.tween_interval(0.8)
+	tw.tween_property(_boss_box, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(func() -> void: _boss_box.visible = false)
 
 
 func _next_unlock(kills: int) -> Dictionary:

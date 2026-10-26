@@ -10,6 +10,8 @@ const THICKNESS := 24.0
 var base_position := Vector2.ZERO
 var grass_color := Color(0.33, 0.68, 0.27)
 var rock_color := Color(0.42, 0.33, 0.27)
+## Tamanho final da ilhota (chefes ficam em ilhotas maiores).
+var size := 1.0
 
 var _time := 0.0
 var _phase := 0.0
@@ -47,11 +49,11 @@ func enter(target: Vector2, from_offset := Vector2(500, 0), delay := 0.0) -> voi
 	base_position = target
 	_offset = from_offset
 	position = target + from_offset
-	scale = Vector2(0.6, 0.6)
+	scale = Vector2(0.6, 0.6) * size
 	var tw := create_tween()
 	tw.tween_interval(delay)
 	tw.tween_property(self, "_offset", Vector2.ZERO, 0.75).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.parallel().tween_property(self, "scale", Vector2.ONE, 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(self, "scale", Vector2.ONE * size, 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func() -> void:
 		Fx.burst(global_position + Vector2(0, THICKNESS), Vector2.DOWN, 10, Color(1, 1, 1, 0.6), 120.0, 1.2, 10.0, -40.0, 0.6, Fx.Kind.SMOKE))
 
@@ -78,7 +80,7 @@ func is_falling() -> bool:
 
 ## Retângulo do topo (em coordenadas globais), usado pelo ragdoll.
 func get_top_rect() -> Rect2:
-	return Rect2(global_position + Vector2(-WIDTH / 2.0, 0), Vector2(WIDTH, THICKNESS))
+	return Rect2(global_position + Vector2(-WIDTH / 2.0, 0) * scale.x, Vector2(WIDTH, THICKNESS) * scale.x)
 
 
 func _process(delta: float) -> void:

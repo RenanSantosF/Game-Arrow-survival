@@ -4,7 +4,9 @@ extends Node2D
 ##
 ## - A origem (0, 0) fica nos PÉS (em cima da plataforma).
 ## - Cabeça, tronco, braço e pernas têm áreas de colisão separadas (hit zones).
-## - Ao morrer, vira um "ragdoll" que cai da plataforma e pode perder partes.
+## - Ao morrer, vira um "ragdoll" que cai da plataforma e pode perder partes
+##   ou até ser partido ao meio.
+## - Pode carregar um ESCUDO na frente do corpo, que bloqueia flechas até quebrar.
 
 signal died(stickman: Stickman, zone: String)
 signal damaged(stickman: Stickman, amount: float, zone: String)
@@ -26,6 +28,10 @@ const STRING_COLOR := Color(0.95, 0.95, 0.95)
 const DECAPITATION_CHANCE := 0.6
 const LIMB_CHANCE := 0.5
 const TORSO_LIMB_CHANCE := 0.15
+## Chance base de partir o corpo ao meio com um tiro no tronco (aumenta com a força).
+const WAIST_CHANCE := 0.18
+const SHIELD_OFFSET := Vector2(24, -80)
+const SHIELD_SIZE := Vector2(22, 104)
 
 var body_color := Color(0.1, 0.1, 0.1)
 var bow_color := Color(0.45, 0.27, 0.1)
@@ -34,6 +40,15 @@ var accessory: Accessory = Accessory.NONE
 var facing_left := false
 var hit_layer := Arrow.LAYER_ENEMY
 var head_multiplier := 3.0
+var eye_color := Color.WHITE
+## Multiplica todo dano recebido (armadura do jogador).
+var damage_taken_mult := 1.0
+## Mostra uma barrinha de vida acima da cabeça quando ferido.
+var show_hp_bar := false
+
+var shield_hp := 0.0
+var shield_max := 0.0
+var shield_color := Color(0.55, 0.35, 0.18)
 
 var max_hp := 100.0
 var hp := 100.0
@@ -64,6 +79,10 @@ var _recoil := 0.0
 var _dot_timer := 0.0
 var _status_fx_timer := 0.0
 var _areas := {}
+var _shield_area: Area2D = null
+var _shield_hit := 0.0
+## Força do último impacto (0 = fraco, >1 = muito forte); define a chance de partir o corpo.
+var _last_hit_power := 0.0
 
 
 func _ready() -> void:
@@ -88,7 +107,13 @@ func get_hit_rids() -> Array[RID]:
 	var rids: Array[RID] = []
 	for area in _areas.values():
 		rids.append((area as Area2D).get_rid())
+	if is_instance_valid(_shield_area):
+		rids.append(_shield_area.get_rid())
 	return rids
+
+
+func has_shield() -> bool:
+	return shield_hp > 0.0 and is_instance_valid(_shield_area)
 
 
 func get_chest_global() -> Vector2:
@@ -124,6 +149,14 @@ func _build_hit_zones() -> void:
 	arm.height = ARM_LENGTH + 16.0
 	_make_zone("arm", arm, Vector2(ARM_LENGTH / 2.0, 0), PI / 2.0)
 
+	if shield_hp > 0.0:
+		shield_max = maxf(shield_max, shield_hp)
+		var rect := RectangleShape2D.new()
+		rect.size = SHIELD_SIZE
+		_make_zone("shield", rect, Vector2(SHIELD_OFFSET.x * get_facing(), SHIELD_OFFSET.y), 0.0)
+		_shield_area = _areas["shield"]
+		_areas.erase("shield")
+
 
 func _make_zone(zone: String, shape: Shape2D, pos: Vector2, shape_rotation: float) -> void:
 	var area := Area2D.new()
@@ -152,14 +185,22 @@ func _make_zone(zone: String, shape: Shape2D, pos: Vector2, shape_rotation: floa
 func receive_arrow(arrow: Arrow, zone: String, point: Vector2, arrow_velocity: Vector2) -> void:
 	if not alive:
 		return
+	var dir := arrow_velocity.normalized()
+	if zone == "shield":
+		var shield_dmg := arrow.damage * (3.0 if arrow.def["id"] == "heavy" else 1.0)
+		damage_shield(shield_dmg, point, dir)
+		_lean_velocity += clampf(arrow_velocity.x * 0.0015, -2.0, 2.0)
+		return
 	var mult: float = head_multiplier if zone == "head" else GameData.ZONE_MULTIPLIER[zone]
 	var dmg := arrow.damage * mult
-	var dir := arrow_velocity.normalized()
+	_last_hit_power = clampf(arrow_velocity.length() / 1300.0, 0.0, 1.2)
+	if arrow.def["id"] == "heavy":
+		_last_hit_power += 0.8
 
 	Fx.blood(point, dir, 1.6 if zone == "head" else 1.0)
 	Sfx.play("headshot" if zone == "head" else "hit")
 	_flash = 1.0
-	_lean_velocity += clampf(arrow_velocity.x * 0.0035, -4.0, 4.0)
+	_lean_velocity += clampf(arrow_velocity.x * 0.0035 * (2.0 if arrow.def["id"] == "heavy" else 1.0), -6.0, 6.0) / scale.x
 
 	match arrow.def["id"]:
 		"poison":
@@ -175,12 +216,41 @@ func receive_arrow(arrow: Arrow, zone: String, point: Vector2, arrow_velocity: V
 			Sfx.play("freeze")
 			Fx.burst(point, Vector2.UP, 12, Color(0.75, 0.97, 1), 220.0, PI, 5.0, 300.0, 0.7, Fx.Kind.FLAKE)
 
+	var hp_before := hp
 	take_damage(dmg, zone, arrow_velocity, point)
+	if arrow.from_player and Game.instance:
+		Game.instance.on_player_arrow_hit(self, arrow, zone, minf(dmg, hp_before), point)
+
+
+## Dano no escudo. Quando a resistência acaba, o escudo se quebra.
+func damage_shield(amount: float, point: Vector2, dir: Vector2) -> void:
+	if not has_shield():
+		return
+	shield_hp -= amount
+	_shield_hit = 1.0
+	Sfx.play("shield", -3.0)
+	Fx.sparks(point, -dir, 8, shield_color.lightened(0.5))
+	if shield_hp <= 0.0:
+		break_shield()
+
+
+func break_shield() -> void:
+	shield_hp = 0.0
+	if not is_instance_valid(_shield_area):
+		return
+	var center := _shield_area.to_global(Vector2(SHIELD_OFFSET.x * get_facing(), SHIELD_OFFSET.y))
+	Fx.burst(center, Vector2.UP, 18, shield_color, 340.0, PI, 7.0, 1100.0, 0.9)
+	Fx.burst(center, Vector2.UP, 8, shield_color.lightened(0.4), 420.0, PI, 3.0, 900.0, 0.5, Fx.Kind.SPARK)
+	Fx.text(center + Vector2(0, -60), "ESCUDO QUEBRADO!", Color(0.85, 0.95, 1.0), 30, 1.0)
+	Sfx.play("shield_break")
+	_shield_area.queue_free()
+	_shield_area = null
 
 
 func take_damage(amount: float, zone: String, impulse: Vector2, point: Vector2) -> void:
 	if not alive:
 		return
+	amount *= damage_taken_mult
 	hp -= amount
 	damaged.emit(self, amount, zone)
 	if hp <= 0.0:
@@ -197,21 +267,28 @@ func die(zone: String, impulse: Vector2, point: Vector2, explosion := false) -> 
 		for part in ["head", "armF", "armB", "legL", "legR"]:
 			if randf() < 0.45:
 				severed.append(part)
+		if randf() < 0.3:
+			severed.append("waist")
 	else:
 		match zone:
 			"head":
 				if randf() < DECAPITATION_CHANCE:
 					severed.append("head")
 			"arm":
-				if randf() < LIMB_CHANCE:
+				if randf() < LIMB_CHANCE + 0.3 * _last_hit_power:
 					severed.append("armF")
 			"leg":
-				if randf() < LIMB_CHANCE:
+				if randf() < LIMB_CHANCE + 0.3 * _last_hit_power:
 					severed.append("legL" if point.x < global_position.x else "legR")
 			_:
-				if randf() < TORSO_LIMB_CHANCE:
+				if randf() < WAIST_CHANCE + 0.3 * _last_hit_power:
+					severed.append("waist")
+				elif randf() < TORSO_LIMB_CHANCE:
 					severed.append(["armB", "legL", "legR"].pick_random())
 
+	if has_shield():
+		# O escudo cai junto e se despedaça.
+		break_shield()
 	var parent := effects_parent if effects_parent else get_parent()
 	var rag := Ragdoll.new()
 	parent.add_child(rag)
@@ -238,6 +315,7 @@ func _process_status(delta: float) -> void:
 				dmg += 3.5
 			if burn_time > 0.0:
 				dmg += 5.0
+			_last_hit_power = 0.0
 			Fx.text(to_global(Vector2(0, -190)), "-%d" % int(dmg), Color(0.6, 1, 0.4) if poison_time > 0.0 else Color(1, 0.7, 0.3), 26, 0.6)
 			take_damage(dmg, "torso", Vector2(-get_facing() * 150.0, -100.0), get_chest_global())
 	_status_fx_timer -= delta
@@ -264,6 +342,7 @@ func _process(delta: float) -> void:
 	modulate.a = 0.35 if invulnerable_time > 0.0 and fmod(invulnerable_time, 0.2) < 0.1 else 1.0
 	_flash = maxf(_flash - delta * 5.0, 0.0)
 	_recoil = maxf(_recoil - delta * 6.0, 0.0)
+	_shield_hit = maxf(_shield_hit - delta * 6.0, 0.0)
 	# Mola amortecida: o corpo balança com o impacto e volta ao lugar.
 	_lean_velocity += (-_lean * 120.0 - _lean_velocity * 9.0) * delta
 	_lean += _lean_velocity * delta
@@ -335,8 +414,13 @@ func _draw() -> void:
 	draw_polyline(PackedVector2Array([p["hip"], p["knee_r"], p["foot_r"]]), col, LINE_WIDTH, true)
 	draw_line(p["hip"], p["neck"], col, LINE_WIDTH, true)
 	draw_circle(p["head"], HEAD_RADIUS, col)
-	draw_circle(p["head"] + Vector2(7 * f, -3), 3.2, Color.WHITE)
-	draw_circle(p["head"] + Vector2(8 * f, -3), 1.5, Color(0.05, 0.05, 0.1))
+	if eye_color != Color.WHITE:
+		# Olho brilhante (inimigos mais avançados).
+		draw_circle(p["head"] + Vector2(7 * f, -3), 6.0, Color(eye_color, 0.3))
+		draw_circle(p["head"] + Vector2(7 * f, -3), 3.4, eye_color)
+	else:
+		draw_circle(p["head"] + Vector2(7 * f, -3), 3.2, Color.WHITE)
+		draw_circle(p["head"] + Vector2(8 * f, -3), 1.5, Color(0.05, 0.05, 0.1))
 	draw_accessory(self, p["head"], f, accessory, accessory_color, _time)
 
 	var dir := Vector2.from_angle(aim_angle)
@@ -354,6 +438,15 @@ func _draw() -> void:
 	draw_line(p["shoulder"], p["hand_front"], col, LINE_WIDTH - 1.0, true)
 	draw_polyline(PackedVector2Array([p["shoulder"], p["elbow_back"], p["hand_back"]]), col, LINE_WIDTH - 1.0, true)
 
+	if has_shield():
+		_draw_shield(f)
+
+	if show_hp_bar and hp < max_hp:
+		var w := 60.0
+		var bar := Rect2(-w / 2.0, -205, w, 8)
+		draw_rect(bar.grow(2.0), Color(0.05, 0.05, 0.1, 0.8))
+		draw_rect(Rect2(bar.position, Vector2(w * hp / max_hp, bar.size.y)), Color(0.95, 0.25, 0.25))
+
 	if freeze_time > 0.0:
 		var a := 0.35 + 0.1 * sin(Time.get_ticks_msec() * 0.01)
 		draw_rect(Rect2(-34, -182, 68, 186), Color(0.7, 0.95, 1.0, a))
@@ -361,8 +454,29 @@ func _draw() -> void:
 		draw_line(Vector2(-26, -170), Vector2(-10, -140), Color(1, 1, 1, 0.7), 2.0)
 
 
-static func draw_accessory(canvas: CanvasItem, head: Vector2, f: float, kind: Accessory, color: Color, time: float, angle := 0.0) -> void:
-	canvas.draw_set_transform(head, angle)
+func _draw_shield(f: float) -> void:
+	var c := Vector2(SHIELD_OFFSET.x * f, SHIELD_OFFSET.y)
+	var hw := SHIELD_SIZE.x / 2.0 + 4.0
+	var hh := SHIELD_SIZE.y / 2.0
+	var shape := PackedVector2Array([
+		c + Vector2(-hw, -hh), c + Vector2(hw, -hh), c + Vector2(hw, hh * 0.55),
+		c + Vector2(0, hh + 10), c + Vector2(-hw, hh * 0.55), c + Vector2(-hw, -hh),
+	])
+	var col := shield_color.lerp(Color.WHITE, _shield_hit * 0.6)
+	draw_colored_polygon(shape, col)
+	draw_polyline(shape, col.lightened(0.35), 3.0, true)
+	draw_line(c + Vector2(0, -hh + 8), c + Vector2(0, hh), col.darkened(0.3), 3.0, true)
+	draw_circle(c + Vector2(0, -8), 5.0, col.lightened(0.5))
+	var ratio := shield_hp / maxf(shield_max, 1.0)
+	if ratio < 0.66:
+		draw_line(c + Vector2(-hw + 3, -20), c + Vector2(-2, 0), Color(0, 0, 0, 0.6), 2.0)
+	if ratio < 0.33:
+		draw_line(c + Vector2(hw - 3, 18), c + Vector2(2, -6), Color(0, 0, 0, 0.6), 2.0)
+		draw_line(c + Vector2(-3, 30), c + Vector2(4, 48), Color(0, 0, 0, 0.6), 2.0)
+
+
+static func draw_accessory(canvas: CanvasItem, head: Vector2, f: float, kind: Accessory, color: Color, time: float, angle := 0.0, size := 1.0) -> void:
+	canvas.draw_set_transform(head, angle, Vector2(size, size))
 	var r := HEAD_RADIUS
 	match kind:
 		Accessory.BANDANA:

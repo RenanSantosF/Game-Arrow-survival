@@ -4,8 +4,9 @@ Jogo 2D de sobrevivência infinita com arco e flecha e personagens stickman,
 feito em **Godot 4.3** (GDScript) para **Android**, na vertical.
 
 Os arqueiros ficam em **ilhotas flutuantes**. Quem morre cai da plataforma
-(com ragdoll, sangue estilizado e, às vezes, desmembramento). Os inimigos são
-substituídos por novos, cada vez mais rápidos, precisos e numerosos.
+(com ragdoll, sangue estilizado e, às vezes, desmembramento ou partido ao meio).
+Os inimigos vêm em **ondas** e **eras** cada vez mais fortes, com mini-chefes e
+**chefes** gigantes; as moedas ganhas compram **melhorias** para o personagem.
 
 ---
 
@@ -36,35 +37,74 @@ a mesma assinatura de teste (`keystore/`) e um número de versão crescente.
 | Recuperar estamina | Acerte a **fruta-estrela amarela**. |
 | Pausar | Botão **II** no canto (ou o botão Voltar do Android). |
 
-- **Vida:** o jogador tem 150; os inimigos começam com 40 (aumenta aos poucos).
-- **Dano por região:** cabeça ×3 (×2,5 no jogador; elmo reduz para ×2), tronco ×1,
-  pernas ×0,7, braço ×0,6.
-- **Estamina:** cada flecha gasta estamina (número abaixo do ícone) e segurar o arco
+- **Vida:** o jogador tem 150 (mais com melhorias); os inimigos começam com ~42.
+- **Dano por região:** cabeça ×3 (×2 no jogador; elmo/coroa reduzem para ×2), tronco ×1,
+  pernas ×0,7, braço ×0,6. As flechas inimigas tiram de 10 a 19 de vida (sobe com as ondas).
+- **Estamina:** cada flecha tem um custo (número abaixo do ícone) que vale para o arco
+  **totalmente puxado**; tiros mais fracos gastam menos (até 40% do custo). Segurar o arco
   puxado cansa. Cansado, o personagem ofega, a mira treme e o tiro sai fraco.
-  Ela se recupera sozinha quando você não está mirando.
-- **Pontos:** 10 por abate (15 caçador, 25 elite), **+15 na cabeça**, bônus de
-  **combo** para abates seguidos em até 2,5 s, +5 por fruta.
-- **Recorde** e **maior sequência** ficam salvos no aparelho.
+  **Acertar recupera estamina:** +18 na cabeça, +4 no tronco, +2 em braço/perna.
+- **Mira:** dá para mirar quase na vertical, para cima ou para baixo.
+- **Desmembramento:** tiros fortes no tronco podem **partir o corpo ao meio**; o Arpão
+  e as explosões partem com mais facilidade.
+- **Pontos:** 10 por abate (+5 por era), 40+ mini-chefe, 150+ chefe, **+15 na cabeça**,
+  bônus de **combo** para abates seguidos em até 2,5 s, +5 por fruta.
+- **Recorde**, **melhor onda** e **moedas** ficam salvos no aparelho.
+
+### Ondas, eras e chefes
+A partida é infinita, mas dividida em **ondas** (`game.gd`). Ao limpar uma onda você
+recupera 12% da vida, um pouco de estamina e ganha moedas. A cada **5 ondas** começa uma
+nova **era**: inimigos com novas cores, acessórios e proteções, e o céu muda de cor.
+
+| Era | Ondas | Inimigos | Proteção | Chefe (onda 5) |
+|---|---|---|---|---|
+| 1 Recrutas | 1–5 | Stickmen simples, cores neutras | — | Grandalhão |
+| 2 Bandidos | 6–10 | Vermelho/laranja, chapéus e bandanas | — | Barão Bandido (rajada de 2) |
+| 3 Caçadores da Floresta | 11–15 | Capuzes verdes/roxos | Escudos de madeira (20%) | Rainha da Floresta (rajada de 3) |
+| 4 Cavaleiros de Ferro | 16–20 | Aço e elmos | Escudos de ferro (40%) | Colosso de Ferro (escudo enorme) |
+| 5 Guarda Real | 21–25 | Azul real, marfim e ouro | Escudos reais (45%) | Rei Arqueiro (coroa, rajada de 3) |
+| 6 Sombras | 26–30 | Violeta e ciano, olhos brilhantes | Escudos sombrios (35%) | Senhor das Sombras (rajada de 4) |
+
+- A **onda 3** de cada era termina com um **mini-chefe** (maior, 2,6× vida, barra de vida).
+- A **onda 5** é a do **chefe**: bem maior, barra de vida no topo, às vezes com escudo e
+  atirando várias flechas de uma vez. Vencer dá 35% de vida e um bônus de moedas.
+- **Escudos** bloqueiam flechas até quebrar (veja as rachaduras). Mire na cabeça ou use
+  Explosiva, Arpão ou Perfurante.
+- Depois da era 6 as eras voltam (“Bandidos +1”…) com inimigos cada vez mais fortes.
+- Precisão e velocidade dos inimigos chegam ao máximo na onda 29; depois disso vida e
+  dano continuam subindo devagar.
+
+### Melhorias (menu → MELHORIAS)
+Moedas: 1+ por abate, +1 na cabeça, mini-chefe 5+, chefe 20+, bônus por onda vencida.
+
+| Melhoria | Efeito por nível | Níveis |
+|---|---|---:|
+| Vida | +20 de vida máxima | 6 |
+| Força | +10% de dano das flechas | 6 |
+| Fôlego | +15 de estamina máxima | 5 |
+| Recuperação | +20% de estamina por segundo | 5 |
+| Armadura | −7% de dano recebido | 5 |
+| Arco Longo | +6% de força do tiro | 4 |
+
+Preços em `scripts/autoload/game_data.gd` (constante `UPGRADES`).
 
 ### Flechas desbloqueáveis (abates seguidos, sem morrer)
 
 | Flecha | Abates | Efeito | Estamina |
 |---|---:|---|---:|
-| Comum | 0 | — | 12 |
-| Veneno | 10 | Dano contínuo por 4 s | 14 |
-| Fogo | 20 | Queima por 3 s | 16 |
-| Gelo | 35 | Congela o inimigo (não atira) por 3 s | 16 |
-| Explosiva | 50 | Explosão em área | 24 |
-| Tripla | 75 | Três flechas de uma vez | 26 |
+| Comum | 0 | — | 7 |
+| Veneno | 8 | Dano contínuo por 4 s | 8 |
+| Fogo | 16 | Queima por 3 s | 9 |
+| Gelo | 25 | Congela o inimigo (não atira) por 3 s | 9 |
+| Perfurante | 35 | Atravessa escudos e até 2 inimigos | 10 |
+| Vampira | 45 | Recupera 35% do dano causado como vida | 10 |
+| Explosiva | 55 | Explosão em área, quebra escudos | 14 |
+| Raio | 70 | Salta para até 2 inimigos próximos | 12 |
+| Tripla | 85 | Três flechas de uma vez | 15 |
+| Teleguiada | 100 | Faz curva atrás do inimigo | 11 |
+| Arpão | 120 | Dano enorme, parte corpos e escudos | 18 |
 
 Os valores ficam em `scripts/autoload/game_data.gd` (constante `ARROWS`).
-
-### Dificuldade infinita
-O nível cresce com os abates e com o tempo (`game.gd → difficulty_level()`):
-1 inimigo no começo → até 4 ao mesmo tempo; mira mais rápida e precisa; menos tempo
-entre tiros; mais vida; inimigos **caçadores** (capuz) e **elite** (elmo) aparecem depois.
-Os inimigos surgem só dentro de uma **área limite** à direita (`ENEMY_AREA`) e sempre
-afastados uns dos outros (`MIN_ENEMY_DISTANCE`).
 
 ---
 
@@ -103,10 +143,10 @@ scripts/
     sfx.gd                    Efeitos sonoros sintetizados por código (sem arquivos de áudio)
     ads.gd                    Anúncios e regras de frequência
   game/
-    game.gd                   Partida: surgimento, dificuldade, frutas, pontos, derrota, reviver
-    stickman.gd               Stickman: desenho, animação, zonas de acerto, status, morte
+    game.gd                   Partida: ondas, eras, chefes, frutas, pontos, moedas, derrota, reviver
+    stickman.gd               Stickman: desenho, animação, zonas de acerto, escudo, status, morte
     player_archer.gd          Jogador: mira por toque, estamina
-    enemy_archer.gd           Inimigo: IA que mira (balística) e atira
+    enemy_archer.gd           Inimigo: IA que mira (balística) e atira (chefes em rajadas)
     ragdoll.gd                Corpo caindo (física Verlet) com desmembramento
     arrow.gd / arrow_draw.gd  Flecha: física, rastro, efeitos e desenho
     floating_platform.gd      Ilhota flutuante (entra, balança, desmorona)
@@ -118,6 +158,7 @@ scripts/
     menu.gd                   Menu com duelo de stickmen ao fundo
     title_logo.gd             Título animado
     arrow_select_panel.gd     Escolha de flechas
+    upgrade_panel.gd          Melhorias do personagem (compradas com moedas)
   ui/
     ui_kit.gd                 Botões, painéis e transições no mesmo estilo
     game_hud.gd               HUD da partida
@@ -167,5 +208,6 @@ Template* em `android/build` e ajusta o `compileSdk` para 36, exigido pelo plugi
 - [x] **Etapa 4** — Sobrevivência: pontos, recorde salvo, surgimento em área limite, dificuldade
 - [x] **Etapa 5** — Menu animado, escolha de flechas, pausa, derrota, sons, frutas, estamina
 - [x] Anúncios com IDs de teste (intersticial espaçado + premiado opcional)
+- [x] Ondas, eras com novos inimigos, mini-chefes, chefes com escudo, melhorias e 11 flechas
 - [ ] **Etapa 6** — Publicação: conta AdMob real, chave de envio privada, AAB, consentimento
       (UMP/LGPD/GDPR), ficha da Play Store e testes fechados

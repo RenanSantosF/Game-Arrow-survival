@@ -22,10 +22,12 @@ const P_KNEE_R := 9
 const P_FOOT_R := 10
 const P_BOW_A := 11
 const P_BOW_B := 12
+const P_WAIST := 13
 
 ## Junta que se rompe em cada desmembramento: [ponto do corpo, ponto da parte].
 const SEVER_JOINTS := {
 	"head": [P_NECK, P_HEAD],
+	"waist": [P_WAIST, P_HIP],
 	"armF": [P_NECK, P_ELBOW_F],
 	"armB": [P_NECK, P_ELBOW_B],
 	"legL": [P_HIP, P_KNEE_L],
@@ -49,6 +51,8 @@ var _bleed_timer := 0.0
 var _head_angle := 0.0
 var _head_spin := 0.0
 var _head_attached := true
+## Tamanho do personagem (chefes são maiores).
+var _size := 1.0
 
 
 func setup_from(s: Stickman, zone: String, impulse: Vector2, severed: Array) -> void:
@@ -58,6 +62,7 @@ func setup_from(s: Stickman, zone: String, impulse: Vector2, severed: Array) -> 
 	_accessory_color = s.accessory_color
 	_facing = s.get_facing()
 	_platform = s.platform
+	_size = s.global_transform.get_scale().x
 	z_index = 2
 
 	var pose := s.get_pose()
@@ -68,6 +73,7 @@ func setup_from(s: Stickman, zone: String, impulse: Vector2, severed: Array) -> 
 	var bow_center: Vector2 = pose["bow_center"]
 	local_points.append(bow_center + Vector2.from_angle(s.aim_angle - Stickman.BOW_HALF_ANGLE) * Stickman.BOW_RADIUS)
 	local_points.append(bow_center + Vector2.from_angle(s.aim_angle + Stickman.BOW_HALF_ANGLE) * Stickman.BOW_RADIUS)
+	local_points.append((pose["neck"] as Vector2).lerp(pose["hip"], 0.55))
 
 	var dt := 1.0 / 60.0
 	var base_v := impulse * 0.22 + Vector2(0, -120)
@@ -80,7 +86,7 @@ func setup_from(s: Stickman, zone: String, impulse: Vector2, severed: Array) -> 
 	# Empurrão extra na parte atingida.
 	var hit_points := {
 		"head": [P_HEAD],
-		"torso": [P_NECK, P_HIP],
+		"torso": [P_NECK, P_WAIST, P_HIP],
 		"arm": [P_ELBOW_F, P_HAND_F],
 		"leg": [P_KNEE_L, P_KNEE_R, P_FOOT_L, P_FOOT_R],
 	}
@@ -88,7 +94,8 @@ func setup_from(s: Stickman, zone: String, impulse: Vector2, severed: Array) -> 
 		_prev[i] -= impulse * 0.35 * dt
 
 	_add_stick(P_HEAD, P_NECK, false)
-	_add_stick(P_NECK, P_HIP, true)
+	_add_stick(P_NECK, P_WAIST, true)
+	_add_stick(P_WAIST, P_HIP, true)
 	_add_stick(P_NECK, P_ELBOW_F, true)
 	_add_stick(P_ELBOW_F, P_HAND_F, true)
 	_add_stick(P_NECK, P_ELBOW_B, true)
@@ -98,8 +105,9 @@ func setup_from(s: Stickman, zone: String, impulse: Vector2, severed: Array) -> 
 	_add_stick(P_HIP, P_KNEE_R, true)
 	_add_stick(P_KNEE_R, P_FOOT_R, true)
 	_add_stick(P_BOW_A, P_BOW_B, false)
-	# Bastão invisível que mantém a cabeça "em pé" sobre o tronco.
-	_add_stick(P_HEAD, P_HIP, false)
+	# Bastões invisíveis que mantêm a cabeça "em pé" e o tronco reto.
+	_add_stick(P_HEAD, P_WAIST, false)
+	_add_stick(P_NECK, P_HIP, false)
 
 	_head_angle = (_pos[P_HEAD] - _pos[P_NECK]).angle()
 	for part in severed:
@@ -120,6 +128,8 @@ func _sever(part: String, impulse: Vector2) -> void:
 		var connects: bool = (st[0] == a and st[1] == b) or (st[0] == b and st[1] == a)
 		if part == "head" and (st[0] == P_HEAD or st[1] == P_HEAD):
 			connects = true
+		if part == "waist" and ((st[0] == P_NECK and st[1] == P_HIP) or (st[0] == P_HIP and st[1] == P_NECK)):
+			connects = true
 		if connects:
 			_sticks.remove_at(i)
 		i -= 1
@@ -129,6 +139,10 @@ func _sever(part: String, impulse: Vector2) -> void:
 	if part == "head":
 		_head_attached = false
 		_head_spin = randf_range(-14, 14)
+	if part == "waist":
+		# As pernas caem, a parte de cima é lançada para trás.
+		_prev[P_NECK] -= impulse.normalized() * 200.0 * dt + Vector2(0, -260) * dt
+		Fx.text(_pos[a] + Vector2(0, -40), "PARTIDO!", Color(1, 0.55, 0.4), 34, 0.9)
 	_bleeding.append([a, b])
 	Fx.blood(_pos[a], Vector2.UP, 2.2)
 	Sfx.play("headshot", -2.0, 0.2)
@@ -155,7 +169,7 @@ func attach_arrow(arrow: Arrow) -> void:
 	var head_d := gp.distance_to(_pos[P_HEAD])
 	arrow.reparent(self, true)
 	arrow.held_by_ragdoll = true
-	if head_d < Stickman.HEAD_RADIUS + 14.0 or best == -1:
+	if head_d < (Stickman.HEAD_RADIUS + 14.0) * _size or best == -1:
 		var rel := (gp - _pos[P_HEAD]).rotated(-_head_angle)
 		_arrows.append([arrow, -1, 0.0, rel, arrow.global_rotation - _head_angle])
 	else:
@@ -271,17 +285,18 @@ func _draw() -> void:
 	draw_set_transform(-global_position)
 	for st in _sticks:
 		if st[3]:
-			draw_line(_pos[st[0]], _pos[st[1]], _color, Stickman.LINE_WIDTH, true)
+			draw_line(_pos[st[0]], _pos[st[1]], _color, Stickman.LINE_WIDTH * _size, true)
 	# Arco caindo (curvado entre as duas pontas).
 	var a := _pos[P_BOW_A]
 	var b := _pos[P_BOW_B]
 	var mid := a.lerp(b, 0.5) + (b - a).orthogonal().normalized() * -10.0 * _facing
-	draw_polyline(PackedVector2Array([a, mid, b]), _bow_color, 4.5, true)
+	draw_polyline(PackedVector2Array([a, mid, b]), _bow_color, 4.5 * _size, true)
 	# Cabeça.
 	var head := _pos[P_HEAD]
-	draw_circle(head, Stickman.HEAD_RADIUS, _color)
-	var eye := head + Vector2(7 * _facing, -3).rotated(_head_angle + PI / 2.0)
-	draw_line(eye + Vector2(-3, -3), eye + Vector2(3, 3), Color.WHITE, 2.0)
-	draw_line(eye + Vector2(3, -3), eye + Vector2(-3, 3), Color.WHITE, 2.0)
+	draw_circle(head, Stickman.HEAD_RADIUS * _size, _color)
+	var eye := head + Vector2(7 * _facing, -3).rotated(_head_angle + PI / 2.0) * _size
+	var e := 3.0 * _size
+	draw_line(eye + Vector2(-e, -e), eye + Vector2(e, e), Color.WHITE, 2.0 * _size)
+	draw_line(eye + Vector2(e, -e), eye + Vector2(-e, e), Color.WHITE, 2.0 * _size)
 	draw_set_transform(Vector2.ZERO)
-	Stickman.draw_accessory(self, head - global_position, _facing, _accessory, _accessory_color, _age, _head_angle + PI / 2.0)
+	Stickman.draw_accessory(self, head - global_position, _facing, _accessory, _accessory_color, _age, _head_angle + PI / 2.0, _size)

@@ -1,23 +1,27 @@
 class_name PlayerArcher
 extends Stickman
 ## Jogador: mira tocando e arrastando o dedo PARA TRÁS (como um estilingue)
-## e dispara ao soltar. Atirar e segurar o arco tenso gasta estamina.
+## e dispara ao soltar. Atirar e segurar o arco tenso gasta estamina: quanto
+## mais forte o tiro, mais estamina ele gasta.
 
 signal shoot_requested(spawn_position: Vector2, velocity: Vector2, def: Dictionary)
 
-const MAX_STAMINA := 100.0
-const STAMINA_REGEN := 15.0
-const HOLD_DRAIN := 4.0
+const STAMINA_REGEN := 16.0
+const HOLD_DRAIN := 3.0
+## Fração do custo da flecha gasta num tiro com o arco quase solto.
+const MIN_COST_RATIO := 0.4
 
 var min_speed := 450.0
 var max_speed := 1300.0
 var max_drag := 250.0
 var dead_zone := 25.0
 var cooldown := 0.28
-var min_angle := -1.45
-var max_angle := 1.15
+var min_angle := -1.8
+var max_angle := 1.5
 
-var stamina := MAX_STAMINA
+var max_stamina := 100.0
+var stamina := 100.0
+var regen_mult := 1.0
 var input_enabled := true
 var aim_guide: Node = null
 ## Função que diz se um ponto da tela está sobre um botão (para não mirar ali).
@@ -33,8 +37,13 @@ var _tired_msg_cooldown := 0.0
 
 func _init() -> void:
 	hit_layer = Arrow.LAYER_PLAYER
-	max_hp = 150.0
-	head_multiplier = 2.5
+	head_multiplier = 2.0
+	max_hp = GameData.player_max_hp()
+	max_stamina = GameData.player_max_stamina()
+	stamina = max_stamina
+	regen_mult = GameData.stamina_regen_mult()
+	damage_taken_mult = GameData.damage_taken_mult()
+	max_speed *= GameData.bow_mult()
 	body_color = Color(0.12, 0.35, 0.85)
 	accessory = Accessory.BANDANA
 	accessory_color = Color(0.98, 0.78, 0.1)
@@ -57,7 +66,7 @@ func _process(delta: float) -> void:
 		draw_power = move_toward(draw_power, 0.0, delta * 8.0)
 		aim_angle = lerp_angle(aim_angle, get_idle_angle(), delta * 1.5)
 		if _regen_delay <= 0.0:
-			stamina = minf(stamina + STAMINA_REGEN * delta, MAX_STAMINA)
+			stamina = minf(stamina + STAMINA_REGEN * regen_mult * delta, max_stamina)
 	tired = clampf(1.0 - stamina / 35.0, 0.0, 1.0)
 
 
@@ -112,7 +121,7 @@ func _release(finger: Vector2) -> void:
 	if pull.length() < dead_zone or _cooldown_left > 0.0:
 		return
 	var def := GameData.get_arrow(GameData.selected_arrow)
-	var cost: float = def["stamina"]
+	var cost := shot_cost(def, draw_power_from(pull))
 	if stamina < cost:
 		# Cansado: o tiro sai fraco.
 		velocity *= 0.55 + 0.45 * (stamina / cost)
@@ -127,6 +136,15 @@ func _release(finger: Vector2) -> void:
 	play_shot_recoil()
 	Sfx.play("shoot")
 	shoot_requested.emit(get_arrow_spawn_global(), velocity, def)
+
+
+## Estamina gasta por um tiro: depende da flecha e da força (0..1) do tiro.
+static func shot_cost(def: Dictionary, power: float) -> float:
+	return float(def["stamina"]) * lerpf(MIN_COST_RATIO, 1.0, power)
+
+
+func draw_power_from(pull: Vector2) -> float:
+	return clampf(pull.length() / max_drag, 0.0, 1.0)
 
 
 func _launch_velocity() -> Vector2:

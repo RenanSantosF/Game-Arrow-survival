@@ -1,7 +1,8 @@
 class_name EnemyArcher
 extends Stickman
 ## Arqueiro inimigo: espera, puxa o arco mirando no jogador e dispara.
-## A precisão, a velocidade e a vida dependem da dificuldade atual.
+## A precisão, a velocidade e a vida dependem da onda atual.
+## Chefes podem disparar uma rajada de várias flechas.
 
 enum State { WAIT, AIM }
 
@@ -12,6 +13,14 @@ var shot_cooldown := 2.2
 var aim_error := 90.0
 var arrow_damage := 16.0
 var score_value := 10
+var coin_value := 1
+## "normal", "captain" (mini-chefe) ou "boss".
+var rank := "normal"
+var display_name := ""
+var head_chance := 0.2
+## Flechas por disparo e abertura entre elas (radianos).
+var volley := 1
+var volley_spread := 0.07
 
 var _state := State.WAIT
 var _timer := 1.5
@@ -49,7 +58,7 @@ func _begin_aim() -> void:
 	_timer = aim_time
 	is_aiming = true
 	var aim_point := target.get_chest_global()
-	if randf() < 0.2:
+	if randf() < head_chance:
 		aim_point = target.get_head_global()
 	aim_point += Vector2(randf_range(-1, 1), randf_range(-1, 1)) * aim_error
 	var start := to_global(SHOULDER) + (aim_point - to_global(SHOULDER)).normalized() * (ARM_LENGTH + 14.0)
@@ -68,4 +77,6 @@ func _shoot() -> void:
 	if not is_instance_valid(target) or not target.alive or Game.instance == null:
 		return
 	Sfx.play("shoot", -5.0)
-	Game.instance.spawn_arrow(get_arrow_spawn_global(), _shot_velocity, GameData.ARROWS[0], arrow_damage, false)
+	for i in volley:
+		var a := (i - (volley - 1) / 2.0) * volley_spread
+		Game.instance.spawn_arrow(get_arrow_spawn_global(), _shot_velocity.rotated(a), GameData.ARROWS[0], arrow_damage, false)
