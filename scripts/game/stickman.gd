@@ -344,8 +344,13 @@ func _process(delta: float) -> void:
 	_recoil = maxf(_recoil - delta * 6.0, 0.0)
 	_shield_hit = maxf(_shield_hit - delta * 6.0, 0.0)
 	# Mola amortecida: o corpo balança com o impacto e volta ao lugar.
-	_lean_velocity += (-_lean * 120.0 - _lean_velocity * 9.0) * delta
-	_lean += _lean_velocity * delta
+	# Calculada em passos curtos para não "explodir" quando um quadro demora (travadas).
+	var left := delta
+	while left > 0.0:
+		var step := minf(left, 1.0 / 60.0)
+		_lean_velocity += (-_lean * 120.0 - _lean_velocity * 9.0) * step
+		_lean += _lean_velocity * step
+		left -= step
 	rotation = _lean
 	var arm_area: Area2D = _areas.get("arm")
 	if arm_area:

@@ -14,10 +14,14 @@ extends Node2D
 const PLAYER_SPOT := Vector2(118, 840)
 ## Área onde os inimigos podem surgir (posição dos pés).
 const ENEMY_AREA := Rect2(455, 430, 185, 560)
-const BOSS_SPOT := Vector2(600, 900)
-## Nas ondas de chefe, os ajudantes ficam acima da cabeça dele.
-const ESCORT_AREA := Rect2(455, 400, 185, 150)
-const MIN_ENEMY_DISTANCE := 165.0
+const BOSS_SPOT := Vector2(610, 960)
+## Espaço ocupado por um inimigo em tamanho normal, relativo aos pés: do arco
+## (à esquerda) até a borda da ilhota, do topo do chapéu até as rochas embaixo.
+const ENEMY_BOX := Rect2(-64, -194, 124, 276)
+## Folga entre dois inimigos (inclui o balanço das ilhotas).
+const BOX_MARGIN := 22.0
+## Por quanto tempo o lugar de um inimigo morto fica reservado (corpo e ilhota caindo).
+const DEAD_SPOT_TIME := 1.6
 const MAX_ARROWS := 45
 const EXPLOSION_RADIUS := 125.0
 const HEAL_AMOUNT := 40.0
@@ -142,6 +146,8 @@ var _wave_active := false
 var _wave_size := 0
 var _wave_break := 1.2
 var _boss: EnemyArcher = null
+## Lugares de inimigos que acabaram de morrer: [caixa, tempo restante].
+var _dead_spots: Array = []
 
 
 func _ready() -> void:
@@ -455,13 +461,26 @@ func _update_wave_label() -> void:
 
 # --- Inimigos ------------------------------------------------------------------
 
-func _spawn_enemy(kind: String) -> void:
+## Tamanho total (ilhota × personagem) de cada tipo de inimigo nesta era.
+func _kind_size(kind: String) -> float:
+	match kind:
+		"boss":
+			return float(era_def()["boss"]["size"])
+		"captain":
+			return 1.2 * 1.12
+	return 1.0
+
+
+## Cria o inimigo. Retorna false se não há espaço livre agora (tenta de novo depois).
+func _spawn_enemy(kind: String) -> bool:
 	var era := era_def()
 	var k := _skill()
 	var over := _overflow()
 	var is_boss := kind == "boss"
 	var is_captain := kind == "captain"
-	var spot := BOSS_SPOT if is_boss else _find_enemy_spot()
+	var spot := _find_enemy_spot(_kind_size(kind), BOSS_SPOT if is_boss else Vector2.INF)
+	if spot == Vector2.INF:
+		return false
 
 	var platform := FloatingPlatform.new()
 	var grass: Color = era["grass"]
@@ -546,34 +565,62 @@ func _spawn_enemy(kind: String) -> void:
 		var obj := instance_from_id(enemy_id)
 		if obj is EnemyArcher:
 			obj.active = true)
+	return true
 
 
-## Escolhe um ponto dentro da área limite, longe dos outros inimigos.
-func _find_enemy_spot() -> Vector2:
-	var area := ESCORT_AREA if is_boss_wave() else ENEMY_AREA
-	var best := area.get_center()
-	var best_dist := -1.0
-	for i in 40:
-		var p := Vector2(
-			randf_range(area.position.x, area.end.x),
-			randf_range(area.position.y, area.end.y))
-		var nearest := INF
-		for e in enemies:
-			if is_instance_valid(e) and is_instance_valid(e.platform):
-				# O chefe ocupa mais espaço.
-				var extra := 120.0 if e.rank == "boss" else (40.0 if e.rank == "captain" else 0.0)
-				nearest = minf(nearest, p.distance_to((e.platform as FloatingPlatform).base_position) - extra)
-		if nearest >= MIN_ENEMY_DISTANCE:
+## Espaço ocupado por um inimigo com os pés em "feet" e tamanho "size".
+static func enemy_box(feet: Vector2, size: float) -> Rect2:
+	return Rect2(feet + ENEMY_BOX.position * size, ENEMY_BOX.size * size)
+
+
+func _occupied_boxes() -> Array[Rect2]:
+	var boxes: Array[Rect2] = []
+	for e in enemies:
+		if is_instance_valid(e) and is_instance_valid(e.platform):
+			var platform := e.platform as FloatingPlatform
+			boxes.append(enemy_box(platform.base_position, e.scale.x * platform.size))
+	for d in _dead_spots:
+		boxes.append(d[0])
+	return boxes
+
+
+## Escolhe um ponto dentro da área limite onde o inimigo não encosta em nenhum
+## outro. Se "fixed" for dado, só testa esse ponto. Retorna Vector2.INF se não há espaço.
+func _find_enemy_spot(size: float, fixed := Vector2.INF) -> Vector2:
+	var boxes := _occupied_boxes()
+	var candidates: Array[Vector2] = []
+	if fixed != Vector2.INF:
+		candidates.append(fixed)
+	else:
+		for i in 60:
+			candidates.append(Vector2(
+				randf_range(ENEMY_AREA.position.x, ENEMY_AREA.end.x),
+				randf_range(ENEMY_AREA.position.y, ENEMY_AREA.end.y)))
+		# Se o sorteio falhar, varre a área toda em grade (sobra pouco espaço livre).
+		var grid: Array[Vector2] = []
+		for x in range(int(ENEMY_AREA.position.x), int(ENEMY_AREA.end.x) + 1, 15):
+			for y in range(int(ENEMY_AREA.position.y), int(ENEMY_AREA.end.y) + 1, 15):
+				grid.append(Vector2(x, y))
+		grid.shuffle()
+		candidates.append_array(grid)
+	for p in candidates:
+		var box := enemy_box(p, size).grow(BOX_MARGIN)
+		var free := true
+		for b in boxes:
+			if box.intersects(b):
+				free = false
+				break
+		if free:
 			return p
-		if nearest > best_dist:
-			best_dist = nearest
-			best = p
-	return best
+	return Vector2.INF
 
 
 func _on_enemy_died(s: Stickman, zone: String) -> void:
 	var e := s as EnemyArcher
 	enemies.erase(e)
+	if is_instance_valid(e.platform):
+		var platform := e.platform as FloatingPlatform
+		_dead_spots.append([enemy_box(platform.base_position, e.scale.x * platform.size), DEAD_SPOT_TIME])
 	kills += 1
 	GameData.add_kill()
 	var pos := e.to_global(Vector2(0, -170))
@@ -658,14 +705,22 @@ func _process(delta: float) -> void:
 	if state != State.PLAYING:
 		return
 	elapsed += delta
+	for i in range(_dead_spots.size() - 1, -1, -1):
+		_dead_spots[i][1] -= delta
+		if _dead_spots[i][1] <= 0.0:
+			_dead_spots.remove_at(i)
 	_combo_timer = maxf(_combo_timer - delta, 0.0)
 
 	if _wave_active:
 		_spawn_timer -= delta
 		if not _wave_queue.is_empty() and _spawn_timer <= 0.0 and enemies.size() < _max_enemies():
-			_spawn_enemy(_wave_queue.pop_front())
-			_spawn_timer = 1.3
-			_update_wave_label()
+			if _spawn_enemy(_wave_queue.front()):
+				_wave_queue.pop_front()
+				_spawn_timer = 1.3
+				_update_wave_label()
+			else:
+				# Sem espaço livre: espera alguém sair em vez de sobrepor.
+				_spawn_timer = 0.3
 		elif _wave_queue.is_empty() and enemies.is_empty():
 			_complete_wave()
 	else:
