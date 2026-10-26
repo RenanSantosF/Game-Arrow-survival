@@ -5,6 +5,7 @@ extends Control
 signal revive_pressed
 signal retry_pressed
 signal menu_pressed
+signal upgrades_pressed
 
 var score := 0
 var kills := 0
@@ -72,6 +73,9 @@ func _ready() -> void:
 	var retry := UiKit.make_button("JOGAR DE NOVO", Color(0.2, 0.7, 0.3), 40, Vector2(460, 100))
 	retry.pressed.connect(func() -> void: retry_pressed.emit())
 	box.add_child(retry)
+	var upgrades := UiKit.make_button("MELHORIAS", Color(0.15, 0.6, 0.45), 34, Vector2(460, 84))
+	upgrades.pressed.connect(func() -> void: upgrades_pressed.emit())
+	box.add_child(upgrades)
 	var menu := UiKit.make_button("MENU", Color(0.25, 0.4, 0.75), 34, Vector2(460, 84))
 	menu.pressed.connect(func() -> void: menu_pressed.emit())
 	box.add_child(menu)

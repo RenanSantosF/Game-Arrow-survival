@@ -71,6 +71,10 @@ func _build_sounds() -> void:
 	_streams["freeze"] = _make(0.45, func(t: float, _i: int) -> float:
 		var env := exp(-t * 6.0)
 		return (sin(TAU * 1800.0 * t) + sin(TAU * 2400.0 * t) * 0.6) * env * 0.18 + randf_range(-1, 1) * env * 0.1)
+	_streams["bone"] = _make(0.2, func(t: float, _i: int) -> float:
+		var crack := randf_range(-1, 1) * exp(-t * 70.0)
+		var snap := randf_range(-1, 1) * exp(-maxf(t - 0.04, 0.0) * 90.0) * (1.0 if t > 0.04 else 0.0)
+		return (crack * 0.8 + snap * 0.6 + sin(TAU * 140.0 * t) * exp(-t * 25.0) * 0.4))
 	_streams["zap"] = _make(0.3, func(t: float, _i: int) -> float:
 		var env := exp(-t * 9.0)
 		var buzz := signf(sin(TAU * 140.0 * t)) * 0.3 + randf_range(-1, 1) * 0.5

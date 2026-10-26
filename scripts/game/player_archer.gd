@@ -38,6 +38,8 @@ var _tired_msg_cooldown := 0.0
 func _init() -> void:
 	hit_layer = Arrow.LAYER_PLAYER
 	head_multiplier = 2.0
+	belly_multiplier = 1.5
+	apply_rank_look(self)
 	max_hp = GameData.player_max_hp()
 	max_stamina = GameData.player_max_stamina()
 	stamina = max_stamina
@@ -47,6 +49,22 @@ func _init() -> void:
 	body_color = Color(0.12, 0.35, 0.85)
 	accessory = Accessory.BANDANA
 	accessory_color = Color(0.98, 0.78, 0.1)
+
+
+## O visual do arqueiro evolui com as melhorias compradas.
+static func apply_rank_look(s: Stickman) -> void:
+	match GameData.player_rank_name():
+		"Caçador":
+			s.accessory = Accessory.HOOD
+			s.accessory_color = Color(0.1, 0.45, 0.25)
+		"Cavaleiro":
+			s.accessory = Accessory.HELMET
+			s.accessory_color = Color(0.8, 0.82, 0.9)
+			s.bow_color = Color(0.55, 0.15, 0.1)
+		"Rei Arqueiro":
+			s.accessory = Accessory.CROWN
+			s.accessory_color = Color(1.0, 0.82, 0.2)
+			s.bow_color = Color(0.95, 0.75, 0.2)
 
 
 func _process(delta: float) -> void:
@@ -140,7 +158,7 @@ func _release(finger: Vector2) -> void:
 
 ## Estamina gasta por um tiro: depende da flecha e da força (0..1) do tiro.
 static func shot_cost(def: Dictionary, power: float) -> float:
-	return float(def["stamina"]) * lerpf(MIN_COST_RATIO, 1.0, power)
+	return GameData.arrow_stamina(def) * lerpf(MIN_COST_RATIO, 1.0, power)
 
 
 func draw_power_from(pull: Vector2) -> float:

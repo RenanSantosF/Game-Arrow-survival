@@ -7,6 +7,8 @@ extends Node2D
 ## - Ao morrer, vira um "ragdoll" que cai da plataforma e pode perder partes
 ##   ou até ser partido ao meio.
 ## - Pode carregar um ESCUDO na frente do corpo, que bloqueia flechas até quebrar.
+## - Braço e perna podem QUEBRAR e até ser ARRANCADOS com o personagem ainda vivo
+##   (inimigos): braço quebrado erra mais, braço arrancado não atira e sangra.
 
 signal died(stickman: Stickman, zone: String)
 signal damaged(stickman: Stickman, amount: float, zone: String)
@@ -40,6 +42,17 @@ var accessory: Accessory = Accessory.NONE
 var facing_left := false
 var hit_layer := Arrow.LAYER_ENEMY
 var head_multiplier := 3.0
+## Barriga: quase tão letal quanto a cabeça.
+var belly_multiplier := 2.5
+## Se braços e pernas podem quebrar/ser arrancados em vida.
+var can_break_limbs := false
+## 0 = inteiro, 1 = quebrado, 2 = arrancado.
+var arm_state := 0
+var leg_state := 0
+## Perna afetada: "l" (de trás) ou "r" (da frente).
+var leg_side := "r"
+## Sangramento de um membro arrancado (dano contínuo).
+var bleed_time := 0.0
 var eye_color := Color.WHITE
 ## Multiplica todo dano recebido (armadura do jogador).
 var damage_taken_mult := 1.0
@@ -83,6 +96,7 @@ var _shield_area: Area2D = null
 var _shield_hit := 0.0
 ## Força do último impacto (0 = fraco, >1 = muito forte); define a chance de partir o corpo.
 var _last_hit_power := 0.0
+var _limb_damage := {"arm": 0.0, "leg": 0.0}
 
 
 func _ready() -> void:
@@ -137,8 +151,12 @@ func _build_hit_zones() -> void:
 
 	var torso := CapsuleShape2D.new()
 	torso.radius = 12.0
-	torso.height = absf(HIP.y - NECK.y) + 24.0
-	_make_zone("torso", torso, (NECK + HIP) / 2.0, 0.0)
+	torso.height = 56.0
+	_make_zone("torso", torso, Vector2(0, -121), 0.0)
+
+	var belly := RectangleShape2D.new()
+	belly.size = Vector2(28, 26)
+	_make_zone("belly", belly, Vector2(0, -82), 0.0)
 
 	var legs := RectangleShape2D.new()
 	legs.size = Vector2(48, 70)
@@ -191,35 +209,126 @@ func receive_arrow(arrow: Arrow, zone: String, point: Vector2, arrow_velocity: V
 		damage_shield(shield_dmg, point, dir)
 		_lean_velocity += clampf(arrow_velocity.x * 0.0015, -2.0, 2.0)
 		return
-	var mult: float = head_multiplier if zone == "head" else GameData.ZONE_MULTIPLIER[zone]
-	var dmg := arrow.damage * mult
+	var dmg := arrow.damage * zone_multiplier(zone)
 	_last_hit_power = clampf(arrow_velocity.length() / 1300.0, 0.0, 1.2)
 	if arrow.def["id"] == "heavy":
 		_last_hit_power += 0.8
 
-	Fx.blood(point, dir, 1.6 if zone == "head" else 1.0)
-	Sfx.play("headshot" if zone == "head" else "hit")
+	Fx.blood(point, dir, 1.6 if zone == "head" or zone == "belly" else 1.0)
+	Sfx.play("headshot" if zone == "head" or zone == "belly" else "hit")
 	_flash = 1.0
 	_lean_velocity += clampf(arrow_velocity.x * 0.0035 * (2.0 if arrow.def["id"] == "heavy" else 1.0), -6.0, 6.0) / scale.x
 
+	var effect := GameData.arrow_effect(arrow.def["id"])
 	match arrow.def["id"]:
 		"poison":
-			poison_time = 4.0
+			poison_time = 4.0 * effect
 			Fx.burst(point, Vector2.UP, 10, Color(0.45, 1, 0.3), 160.0, 1.2, 4.0, 200.0, 0.7)
 		"fire":
-			burn_time = 3.0
+			burn_time = 3.0 * effect
 			Sfx.play("fire")
 			Fx.burst(point, Vector2.UP, 10, Color(1, 0.6, 0.1), 140.0, 1.0, 8.0, -150.0, 0.5, Fx.Kind.SMOKE)
 		"ice":
 			if hit_layer == Arrow.LAYER_ENEMY:
-				freeze_time = 3.0
+				freeze_time = 3.0 * effect
 			Sfx.play("freeze")
 			Fx.burst(point, Vector2.UP, 12, Color(0.75, 0.97, 1), 220.0, PI, 5.0, 300.0, 0.7, Fx.Kind.FLAKE)
 
 	var hp_before := hp
 	take_damage(dmg, zone, arrow_velocity, point)
+	if alive and can_break_limbs and (zone == "arm" or zone == "leg"):
+		_hurt_limb(zone, dmg, point, dir, arrow.def["id"] == "heavy")
 	if arrow.from_player and Game.instance:
 		Game.instance.on_player_arrow_hit(self, arrow, zone, minf(dmg, hp_before), point)
+
+
+func zone_multiplier(zone: String) -> float:
+	match zone:
+		"head":
+			return head_multiplier
+		"belly":
+			return belly_multiplier
+	return GameData.ZONE_MULTIPLIER.get(zone, 1.0)
+
+
+## Penalidade de mira por membros feridos (1 = normal).
+func aim_penalty() -> float:
+	var p := 1.0
+	if arm_state == 1:
+		p *= 1.8
+	if leg_state >= 1:
+		p *= 1.25
+	return p
+
+
+func can_shoot() -> bool:
+	return arm_state < 2
+
+
+# --- Membros quebrados e arrancados ---------------------------------------------
+
+## Acumula dano no membro: primeiro quebra, depois é arrancado. O Arpão é brutal.
+func _hurt_limb(zone: String, dmg: float, point: Vector2, dir: Vector2, heavy: bool) -> void:
+	_limb_damage[zone] += dmg
+	var threshold := maxf(max_hp * 0.3, 15.0)
+	var state := arm_state if zone == "arm" else leg_state
+	if state >= 2:
+		return
+	if zone == "leg" and state == 0:
+		leg_side = "l" if to_local(point).x * get_facing() < 0.0 else "r"
+	var new_state := state
+	if state == 0 and (heavy or _limb_damage[zone] >= threshold):
+		new_state = 2 if heavy and randf() < 0.5 else 1
+	elif state == 1 and (heavy or _limb_damage[zone] >= threshold * 2.0):
+		new_state = 2
+	if new_state == state:
+		return
+	if zone == "arm":
+		arm_state = new_state
+	else:
+		leg_state = new_state
+	var label := "BRAÇO" if zone == "arm" else "PERNA"
+	if new_state == 1:
+		Sfx.play("bone")
+		Fx.text(point + Vector2(0, -40), "%s QUEBRAD%s!" % [label, "O" if zone == "arm" else "A"], Color(1, 0.8, 0.5), 30, 1.0)
+		Fx.burst(point, -dir, 5, Color(0.95, 0.93, 0.85), 260.0, 0.8, 2.5, 900.0, 0.4, Fx.Kind.SPARK)
+		_lean_velocity += 3.0 * get_facing()
+	else:
+		_sever_limb(zone, dir)
+		Fx.text(point + Vector2(0, -40), "%s ARRANCAD%s!" % [label, "O" if zone == "arm" else "A"], Color(1, 0.45, 0.4), 32, 1.1)
+
+
+func _sever_limb(zone: String, dir: Vector2) -> void:
+	var pose := get_pose()
+	var pieces: Array = []
+	var stump: Vector2
+	if zone == "arm":
+		var c: Vector2 = pose["bow_center"]
+		var bow := PackedVector2Array()
+		for i in 9:
+			bow.append(to_global(c + Vector2.from_angle(aim_angle - BOW_HALF_ANGLE + BOW_HALF_ANGLE * 2.0 * i / 8.0) * BOW_RADIUS))
+		pieces.append([PackedVector2Array([to_global(pose["shoulder"]), to_global(pose["elbow_front"]), to_global(pose["hand_front"])]), body_color, LINE_WIDTH - 1.0])
+		pieces.append([bow, bow_color, 4.5])
+		stump = to_global(pose["shoulder"])
+		# Sem o braço do arco, não atira mais.
+		is_aiming = false
+		draw_power = 0.0
+		var arm_area: Area2D = _areas.get("arm")
+		if arm_area:
+			_areas.erase("arm")
+			arm_area.queue_free()
+	else:
+		var k: String = "knee_" + leg_side
+		var foot: String = "foot_" + leg_side
+		pieces.append([PackedVector2Array([to_global(pose["hip"]), to_global(pose[k]), to_global(pose[foot])]), body_color, LINE_WIDTH])
+		stump = to_global(pose["hip"])
+	var piece := LimbPiece.new()
+	(effects_parent if effects_parent else get_parent()).add_child(piece)
+	piece.setup(pieces, dir * 320.0 + Vector2(randf_range(-80, 80), -360), global_transform.get_scale().x)
+	Fx.blood(stump, dir, 2.0)
+	Sfx.play("headshot", -2.0, 0.2)
+	bleed_time = 999.0
+	_lean_velocity += 4.0 * get_facing()
 
 
 ## Dano no escudo. Quando a resistência acaba, o escudo se quebra.
@@ -280,6 +389,9 @@ func die(zone: String, impulse: Vector2, point: Vector2, explosion := false) -> 
 			"leg":
 				if randf() < LIMB_CHANCE + 0.3 * _last_hit_power:
 					severed.append("legL" if point.x < global_position.x else "legR")
+			"belly":
+				if randf() < WAIST_CHANCE * 2.0 + 0.3 * _last_hit_power:
+					severed.append("waist")
 			_:
 				if randf() < WAIST_CHANCE + 0.3 * _last_hit_power:
 					severed.append("waist")
@@ -289,10 +401,17 @@ func die(zone: String, impulse: Vector2, point: Vector2, explosion := false) -> 
 	if has_shield():
 		# O escudo cai junto e se despedaça.
 		break_shield()
+	var missing: Array[String] = []
+	if arm_state == 2:
+		missing.append("armF")
+	if leg_state == 2:
+		missing.append("legL" if leg_side == "l" else "legR")
+	for m in missing:
+		severed.erase(m)
 	var parent := effects_parent if effects_parent else get_parent()
 	var rag := Ragdoll.new()
 	parent.add_child(rag)
-	rag.setup_from(self, zone, impulse, severed)
+	rag.setup_from(self, zone, impulse, severed, missing)
 	for area in _areas.values():
 		for child in (area as Node).get_children():
 			if child is Arrow:
@@ -306,7 +425,8 @@ func _process_status(delta: float) -> void:
 	poison_time = maxf(poison_time - delta, 0.0)
 	burn_time = maxf(burn_time - delta, 0.0)
 	freeze_time = maxf(freeze_time - delta, 0.0)
-	if poison_time > 0.0 or burn_time > 0.0:
+	bleed_time = maxf(bleed_time - delta, 0.0)
+	if poison_time > 0.0 or burn_time > 0.0 or bleed_time > 0.0:
 		_dot_timer -= delta
 		if _dot_timer <= 0.0:
 			_dot_timer = 0.5
@@ -315,8 +435,15 @@ func _process_status(delta: float) -> void:
 				dmg += 3.5
 			if burn_time > 0.0:
 				dmg += 5.0
+			if bleed_time > 0.0:
+				dmg += 3.5
 			_last_hit_power = 0.0
-			Fx.text(to_global(Vector2(0, -190)), "-%d" % int(dmg), Color(0.6, 1, 0.4) if poison_time > 0.0 else Color(1, 0.7, 0.3), 26, 0.6)
+			var dot_color := Color(1, 0.35, 0.35)
+			if poison_time > 0.0:
+				dot_color = Color(0.6, 1, 0.4)
+			elif burn_time > 0.0:
+				dot_color = Color(1, 0.7, 0.3)
+			Fx.text(to_global(Vector2(0, -190)), "-%d" % int(dmg), dot_color, 26, 0.6)
 			take_damage(dmg, "torso", Vector2(-get_facing() * 150.0, -100.0), get_chest_global())
 	_status_fx_timer -= delta
 	if _status_fx_timer <= 0.0:
@@ -325,6 +452,10 @@ func _process_status(delta: float) -> void:
 			Fx.burst(to_global(Vector2(randf_range(-14, 14), randf_range(-150, -60))), Vector2.UP, 1, Color(0.45, 1, 0.3, 0.8), 60.0, 0.4, 4.0, -120.0, 0.6)
 		if burn_time > 0.0:
 			Fx.burst(to_global(Vector2(randf_range(-14, 14), randf_range(-150, -40))), Vector2.UP, 1, Color(1, 0.55, 0.1, 0.9), 70.0, 0.4, 9.0, -200.0, 0.45, Fx.Kind.SMOKE)
+		if bleed_time > 0.0:
+			# Sangue escorrendo do membro arrancado.
+			var stump: Vector2 = SHOULDER if arm_state == 2 else HIP
+			Fx.burst(to_global(stump), Vector2.DOWN, 2, Color(0.75, 0.04, 0.06), 90.0, 0.6, 3.5, 900.0, 0.5)
 
 
 # --- Animação ------------------------------------------------------------------
@@ -351,7 +482,8 @@ func _process(delta: float) -> void:
 		_lean_velocity += (-_lean * 120.0 - _lean_velocity * 9.0) * step
 		_lean += _lean_velocity * step
 		left -= step
-	rotation = _lean
+	# Perna quebrada ou arrancada: o corpo fica torto.
+	rotation = _lean + (0.07 * leg_state * get_facing() * (1.0 if leg_side == "r" else -1.0))
 	var arm_area: Area2D = _areas.get("arm")
 	if arm_area:
 		arm_area.position = _shoulder()
@@ -381,7 +513,7 @@ func get_pose() -> Dictionary:
 	var hand := shoulder + dir * ARM_LENGTH
 	var pull := hand - dir * (8.0 + 30.0 * draw_power)
 	var knee_bend := 1.0 + breath * 0.3
-	return {
+	var pose := {
 		"head": HEAD + Vector2(-dir.x * 2.0 * _recoil, breath),
 		"neck": NECK + Vector2(0, breath),
 		"shoulder": shoulder,
@@ -396,6 +528,19 @@ func get_pose() -> Dictionary:
 		"foot_r": Vector2(20 * f, 0),
 		"bow_center": hand - dir * (BOW_RADIUS - 6.0),
 	}
+	if arm_state == 1:
+		# Braço quebrado: o cotovelo dobra para baixo num ângulo estranho.
+		pose["elbow_front"] = shoulder.lerp(hand, 0.5) + Vector2(4 * f, 15)
+	elif arm_state == 2:
+		# Sem o braço do arco: o outro braço fica pendurado.
+		pose["elbow_back"] = shoulder + Vector2(-6 * f, 20)
+		pose["hand_back"] = shoulder + Vector2(-4 * f, 40)
+	if leg_state == 1:
+		# Perna quebrada: joelho torto e pé erguido, sem apoiar.
+		var side_f := f if leg_side == "r" else -f
+		pose["knee_" + leg_side] = Vector2(26 * side_f, -40 + sin(_time * 7.0) * 2.0)
+		pose["foot_" + leg_side] = Vector2(8 * side_f, -18)
+	return pose
 
 
 func current_color() -> Color:
@@ -415,8 +560,16 @@ func _draw() -> void:
 	var col := current_color()
 	var f := get_facing()
 
-	draw_polyline(PackedVector2Array([p["hip"], p["knee_l"], p["foot_l"]]), col, LINE_WIDTH, true)
-	draw_polyline(PackedVector2Array([p["hip"], p["knee_r"], p["foot_r"]]), col, LINE_WIDTH, true)
+	for side in ["l", "r"]:
+		if leg_state == 2 and side == leg_side:
+			draw_circle(p["hip"], 5.0, Color(0.7, 0.03, 0.05))
+			continue
+		draw_polyline(PackedVector2Array([p["hip"], p["knee_" + side], p["foot_" + side]]), col, LINE_WIDTH, true)
+		if leg_state == 1 and side == leg_side:
+			# Osso aparecendo no joelho.
+			var knee: Vector2 = p["knee_" + side]
+			draw_line(knee, knee + Vector2(6, -7), Color(0.96, 0.94, 0.86), 3.0, true)
+			draw_circle(knee, 3.5, Color(0.75, 0.04, 0.06))
 	draw_line(p["hip"], p["neck"], col, LINE_WIDTH, true)
 	draw_circle(p["head"], HEAD_RADIUS, col)
 	if eye_color != Color.WHITE:
@@ -429,18 +582,21 @@ func _draw() -> void:
 	draw_accessory(self, p["head"], f, accessory, accessory_color, _time)
 
 	var dir := Vector2.from_angle(aim_angle)
-	var center: Vector2 = p["bow_center"]
-	var tip_a := center + Vector2.from_angle(aim_angle - BOW_HALF_ANGLE) * BOW_RADIUS
-	var tip_b := center + Vector2.from_angle(aim_angle + BOW_HALF_ANGLE) * BOW_RADIUS
-	draw_polyline(PackedVector2Array([tip_a, p["hand_back"], tip_b]), STRING_COLOR, 1.5, true)
-	draw_arc(center, BOW_RADIUS, aim_angle - BOW_HALF_ANGLE, aim_angle + BOW_HALF_ANGLE, 16, bow_color, 4.5, true)
+	if arm_state < 2:
+		var center: Vector2 = p["bow_center"]
+		var tip_a := center + Vector2.from_angle(aim_angle - BOW_HALF_ANGLE) * BOW_RADIUS
+		var tip_b := center + Vector2.from_angle(aim_angle + BOW_HALF_ANGLE) * BOW_RADIUS
+		draw_polyline(PackedVector2Array([tip_a, p["hand_back"], tip_b]), STRING_COLOR, 1.5, true)
+		draw_arc(center, BOW_RADIUS, aim_angle - BOW_HALF_ANGLE, aim_angle + BOW_HALF_ANGLE, 16, bow_color, 4.5, true)
 
-	if is_aiming:
-		draw_set_transform(p["hand_back"] + dir * ArrowDraw.LENGTH, aim_angle)
-		ArrowDraw.draw_arrow(self, nocked_def)
-		draw_set_transform(Vector2.ZERO)
+		if is_aiming:
+			draw_set_transform(p["hand_back"] + dir * ArrowDraw.LENGTH, aim_angle)
+			ArrowDraw.draw_arrow(self, nocked_def)
+			draw_set_transform(Vector2.ZERO)
 
-	draw_line(p["shoulder"], p["hand_front"], col, LINE_WIDTH - 1.0, true)
+		draw_polyline(PackedVector2Array([p["shoulder"], p["elbow_front"], p["hand_front"]]), col, LINE_WIDTH - 1.0, true)
+	else:
+		draw_circle(p["shoulder"], 5.0, Color(0.7, 0.03, 0.05))
 	draw_polyline(PackedVector2Array([p["shoulder"], p["elbow_back"], p["hand_back"]]), col, LINE_WIDTH - 1.0, true)
 
 	if has_shield():

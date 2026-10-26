@@ -29,7 +29,7 @@ const STAMINA_AMOUNT := 60.0
 const COMBO_WINDOW := 2.5
 const WAVES_PER_ERA := 5
 ## Estamina recuperada ao acertar um inimigo, por região.
-const HIT_STAMINA := {"head": 18.0, "torso": 4.0, "arm": 2.0, "leg": 2.0}
+const HIT_STAMINA := {"head": 18.0, "belly": 10.0, "torso": 4.0, "arm": 2.0, "leg": 2.0}
 const VAMPIRE_RATIO := 0.35
 const LIGHTNING_RANGE := 380.0
 
@@ -221,7 +221,7 @@ func _spawn_player(is_revive: bool) -> void:
 
 
 func _on_player_shoot(spawn: Vector2, velocity: Vector2, def: Dictionary) -> void:
-	var dmg: float = def["damage"] * GameData.damage_mult()
+	var dmg: float = GameData.arrow_damage(def) * GameData.damage_mult()
 	if def["id"] == "triple":
 		for a in [-0.09, 0.0, 0.09]:
 			spawn_arrow(spawn, velocity.rotated(a), def, dmg, true)
@@ -237,25 +237,28 @@ func on_player_arrow_hit(target: Stickman, arrow: Arrow, zone: String, dmg: floa
 	var gain: float = HIT_STAMINA.get(zone, 0.0)
 	if gain > 0.0:
 		player.stamina = minf(player.stamina + gain, player.max_stamina)
-		if zone == "head":
+		if zone == "head" or zone == "belly":
 			Fx.text(player.to_global(Vector2(0, -230)), "+%d ESTAMINA" % int(gain), Color(1, 0.88, 0.3), 26, 0.9)
+	if zone == "belly" and target.alive:
+		Fx.text(point + Vector2(0, -30), "NA BARRIGA!", Color(1, 0.6, 0.3), 28, 0.8)
+	var effect := GameData.arrow_effect(arrow.def["id"])
 	match arrow.def["id"]:
 		"vampire":
-			var heal := dmg * VAMPIRE_RATIO
+			var heal := dmg * VAMPIRE_RATIO * effect
 			if heal >= 1.0:
 				player.hp = minf(player.hp + heal, player.max_hp)
 				Fx.text(player.to_global(Vector2(0, -260)), "+%d" % int(heal), Color(1, 0.35, 0.45), 28, 0.8)
 				Fx.burst(point, (player.get_chest_global() - point).normalized(), 8, Color(0.9, 0.1, 0.25), 420.0, 0.3, 4.0, 0.0, 0.6)
 		"lightning":
-			_chain_lightning(target, point, arrow.damage * 0.6)
+			_chain_lightning(target, point, arrow.damage * 0.6 * effect, 3 if GameData.arrow_level("lightning") >= 3 else 2)
 
 
-## O raio salta do alvo para até 2 inimigos próximos.
-func _chain_lightning(source: Stickman, point: Vector2, dmg: float) -> void:
+## O raio salta do alvo para inimigos próximos (2, ou 3 com a flecha melhorada).
+func _chain_lightning(source: Stickman, point: Vector2, dmg: float, jumps: int) -> void:
 	Sfx.play("zap")
 	var from := point
 	var hit := [source]
-	for i in 2:
+	for i in jumps:
 		var best: EnemyArcher = null
 		var best_d := LIGHTNING_RANGE
 		for e in enemies:
@@ -311,7 +314,9 @@ func spawn_arrow(start: Vector2, velocity: Vector2, def: Dictionary, damage: flo
 
 
 func explode(point: Vector2, arrow: Arrow, collider: Object) -> void:
-	Fx.explosion(point, EXPLOSION_RADIUS)
+	# A explosão cresce com o nível da flecha.
+	var radius := EXPLOSION_RADIUS * (0.5 + 0.5 * GameData.arrow_effect("explosive"))
+	Fx.explosion(point, radius)
 	Sfx.play("explosion")
 	add_shake(14.0)
 	var direct: Stickman = null
@@ -325,13 +330,12 @@ func explode(point: Vector2, arrow: Arrow, collider: Object) -> void:
 		var d := e.get_chest_global().distance_to(point)
 		var dmg := 0.0
 		# A explosão destrói escudos com facilidade.
-		if e.has_shield() and d < EXPLOSION_RADIUS + 60.0:
+		if e.has_shield() and d < radius + 60.0:
 			e.damage_shield(arrow.damage * (3.0 if e == direct and direct_zone == "shield" else 2.0), point, (e.get_chest_global() - point).normalized())
 		if e == direct and direct_zone != "shield":
-			var mult: float = e.head_multiplier if direct_zone == "head" else GameData.ZONE_MULTIPLIER[direct_zone]
-			dmg += arrow.damage * mult
-		if d < EXPLOSION_RADIUS + 40.0:
-			dmg += 45.0 * (1.0 - d / (EXPLOSION_RADIUS + 40.0) * 0.6)
+			dmg += arrow.damage * e.zone_multiplier(direct_zone)
+		if d < radius + 40.0:
+			dmg += 45.0 * (1.0 - d / (radius + 40.0) * 0.6)
 		if dmg <= 0.0:
 			continue
 		var impulse := (e.get_chest_global() - point).normalized() * 1100.0 + Vector2(0, -300)
@@ -342,7 +346,7 @@ func explode(point: Vector2, arrow: Arrow, collider: Object) -> void:
 		else:
 			e.take_damage(dmg, "torso", impulse, point)
 	for f in _fruits.get_children():
-		if f is Fruit and f.global_position.distance_to(point) < EXPLOSION_RADIUS:
+		if f is Fruit and f.global_position.distance_to(point) < radius:
 			f.hit_by_arrow(arrow)
 
 
@@ -495,7 +499,7 @@ func _spawn_enemy(kind: String) -> bool:
 
 	var e := EnemyArcher.new()
 	e.rank = kind
-	e.max_hp = (40.0 + minf(wave * 2.2, 70.0)) * over
+	e.max_hp = (48.0 + minf(wave * 2.6, 84.0)) * over
 	e.aim_time = lerpf(2.4, 1.0, k) * randf_range(0.9, 1.1)
 	e.shot_cooldown = lerpf(2.8, 1.2, k)
 	e.aim_error = lerpf(115.0, 26.0, k)
@@ -626,6 +630,9 @@ func _on_enemy_died(s: Stickman, zone: String) -> void:
 	var pos := e.to_global(Vector2(0, -170))
 	var pts := e.score_value
 	var coins := e.coin_value
+	if zone == "belly":
+		pts += 8
+		Fx.text(pos + Vector2(0, -50), "NA BARRIGA!", Color(1, 0.6, 0.3), 40, 1.0)
 	if zone == "head":
 		headshots += 1
 		pts += 15
@@ -646,6 +653,7 @@ func _on_enemy_died(s: Stickman, zone: String) -> void:
 	score += pts
 	run_coins += coins
 	Fx.text(pos, "+%d" % pts, Color.WHITE, 38, 1.0)
+	Fx.text(pos + Vector2(0, 42), "+%d moeda%s" % [coins, "s" if coins > 1 else ""], UiKit.GOLD, 26, 1.0)
 	add_shake(6.0)
 	if is_instance_valid(e.platform):
 		(e.platform as FloatingPlatform).crumble(0.6)
@@ -803,6 +811,7 @@ func _show_game_over() -> void:
 	_overlay.add_child(panel)
 	Sfx.play("gameover")
 	panel.revive_pressed.connect(func() -> void: Ads.show_rewarded())
+	panel.upgrades_pressed.connect(func() -> void: _overlay.add_child(UpgradePanel.new()))
 	panel.retry_pressed.connect(func() -> void:
 		Ads.maybe_show_interstitial(func() -> void: UiKit.fade_to_scene(self, "res://scenes/game.tscn")))
 	panel.menu_pressed.connect(func() -> void:

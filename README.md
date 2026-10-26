@@ -38,15 +38,19 @@ a mesma assinatura de teste (`keystore/`) e um número de versão crescente.
 | Pausar | Botão **II** no canto (ou o botão Voltar do Android). |
 
 - **Vida:** o jogador tem 150 (mais com melhorias); os inimigos começam com ~42.
-- **Dano por região:** cabeça ×3 (×2 no jogador; elmo/coroa reduzem para ×2), tronco ×1,
-  pernas ×0,7, braço ×0,6. As flechas inimigas tiram de 10 a 19 de vida (sobe com as ondas).
+- **Dano por região:** cabeça ×3 (×2 no jogador; elmo/coroa reduzem para ×2),
+  **barriga ×2,5** (×1,5 no jogador), peito ×1, pernas ×0,7, braço ×0,6. As flechas inimigas tiram de 10 a 19 de vida (sobe com as ondas).
 - **Estamina:** cada flecha tem um custo (número abaixo do ícone) que vale para o arco
   **totalmente puxado**; tiros mais fracos gastam menos (até 40% do custo). Segurar o arco
   puxado cansa. Cansado, o personagem ofega, a mira treme e o tiro sai fraco.
-  **Acertar recupera estamina:** +18 na cabeça, +4 no tronco, +2 em braço/perna.
+  **Acertar recupera estamina:** +18 na cabeça, +10 na barriga, +4 no peito, +2 em braço/perna.
 - **Mira:** dá para mirar quase na vertical, para cima ou para baixo.
-- **Desmembramento:** tiros fortes no tronco podem **partir o corpo ao meio**; o Arpão
-  e as explosões partem com mais facilidade.
+- **Desmembramento:** tiros fortes no tronco (principalmente na barriga) podem **partir o
+  corpo ao meio**; o Arpão e as explosões partem com mais facilidade.
+- **Membros quebrados (inimigo vivo):** dano acumulado num braço ou perna **quebra** o
+  membro (braço quebrado: mira bem pior; perna quebrada: mais lento e torto). Mais dano
+  **arranca** o membro: sem o braço do arco o inimigo não atira mais e sangra até morrer.
+  O Arpão pode quebrar ou arrancar de uma vez.
 - **Pontos:** 10 por abate (+5 por era), 40+ mini-chefe, 150+ chefe, **+15 na cabeça**,
   bônus de **combo** para abates seguidos em até 2,5 s, +5 por fruta.
 - **Recorde**, **melhor onda** e **moedas** ficam salvos no aparelho.
@@ -74,8 +78,10 @@ nova **era**: inimigos com novas cores, acessórios e proteções, e o céu muda
 - Precisão e velocidade dos inimigos chegam ao máximo na onda 29; depois disso vida e
   dano continuam subindo devagar.
 
-### Melhorias (menu → MELHORIAS)
+### Melhorias (menu → MELHORIAS, ou na tela de derrota)
 Moedas: 1+ por abate, +1 na cabeça, mini-chefe 5+, chefe 20+, bônus por onda vencida.
+O visual do arqueiro evolui com as melhorias: Aprendiz (bandana) → Caçador (capuz) →
+Cavaleiro (elmo) → Rei Arqueiro (coroa).
 
 | Melhoria | Efeito por nível | Níveis |
 |---|---|---:|
@@ -88,7 +94,11 @@ Moedas: 1+ por abate, +1 na cabeça, mini-chefe 5+, chefe 20+, bônus por onda v
 
 Preços em `scripts/autoload/game_data.gd` (constante `UPGRADES`).
 
-### Flechas desbloqueáveis (abates seguidos, sem morrer)
+### Flechas (menu → FLECHAS)
+Desbloqueie com abates seguidos (sem morrer) **ou compre com moedas**. Cada flecha tem
+**5 níveis de melhoria**: +12% de dano, −6% de estamina e +15% de efeito por nível
+(veneno/fogo/gelo duram mais, explosão maior, Vampira cura mais, Teleguiada vira mais;
+no nível 3 a Perfurante atravessa 3 inimigos e o Raio salta para 3).
 
 | Flecha | Abates | Efeito | Estamina |
 |---|---:|---|---:|
@@ -148,6 +158,7 @@ scripts/
     player_archer.gd          Jogador: mira por toque, estamina
     enemy_archer.gd           Inimigo: IA que mira (balística) e atira (chefes em rajadas)
     ragdoll.gd                Corpo caindo (física Verlet) com desmembramento
+    limb_piece.gd             Membro arrancado em vida, voando e caindo
     arrow.gd / arrow_draw.gd  Flecha: física, rastro, efeitos e desenho
     floating_platform.gd      Ilhota flutuante (entra, balança, desmorona)
     fruit.gd                  Frutas de vida e estamina

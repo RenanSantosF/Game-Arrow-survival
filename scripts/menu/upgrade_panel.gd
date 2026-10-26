@@ -2,10 +2,13 @@ class_name UpgradePanel
 extends Control
 ## Tela de melhorias do personagem: gaste as moedas ganhas nas partidas para
 ## aumentar vida, dano, estamina, recuperação, armadura e força do arco.
+## O visual e o título do arqueiro evoluem com as melhorias. Há um atalho para
+## melhorar as flechas.
 
 signal closed
 
 var _coins_label: Label
+var _rank_label: Label
 var _rows := {}
 
 
@@ -23,6 +26,8 @@ func _ready() -> void:
 	panel.add_child(box)
 
 	box.add_child(UiKit.make_label("MELHORIAS", 48, UiKit.GOLD, 10))
+	_rank_label = UiKit.make_label("", 24, Color(0.7, 0.9, 1.0), 6)
+	box.add_child(_rank_label)
 	_coins_label = UiKit.make_label("", 32, UiKit.GOLD, 7)
 	box.add_child(_coins_label)
 	box.add_child(UiKit.make_label("Ganhe moedas abatendo inimigos,\nvencendo ondas e derrotando chefes.", 20, Color(0.85, 0.9, 1), 5))
@@ -30,12 +35,21 @@ func _ready() -> void:
 	for u in GameData.UPGRADES:
 		box.add_child(_make_row(u))
 
-	var done := UiKit.make_button("PRONTO", Color(0.2, 0.7, 0.3), 38, Vector2(380, 88))
-	done.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 14)
+	box.add_child(buttons)
+	var arrows := UiKit.make_button("FLECHAS", Color(0.45, 0.3, 0.8), 32, Vector2(280, 84))
+	arrows.pressed.connect(func() -> void:
+		var arrow_panel := ArrowSelectPanel.new()
+		arrow_panel.closed.connect(_refresh)
+		get_parent().add_child(arrow_panel))
+	buttons.add_child(arrows)
+	var done := UiKit.make_button("PRONTO", Color(0.2, 0.7, 0.3), 32, Vector2(280, 84))
 	done.pressed.connect(func() -> void:
 		closed.emit()
 		queue_free())
-	box.add_child(done)
+	buttons.add_child(done)
 	_refresh()
 	await get_tree().process_frame
 	UiKit.pop_in(panel)
@@ -92,6 +106,7 @@ func _pulse(c: Control) -> void:
 
 func _refresh() -> void:
 	_coins_label.text = "Moedas: %d" % GameData.coins
+	_rank_label.text = "Seu arqueiro: %s" % GameData.player_rank_name()
 	for id in _rows:
 		var pips: Label = _rows[id][0]
 		var buy: Button = _rows[id][1]

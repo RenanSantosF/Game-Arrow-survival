@@ -31,11 +31,15 @@ var _shot_velocity := Vector2.ZERO
 func _init() -> void:
 	hit_layer = Arrow.LAYER_ENEMY
 	facing_left = true
+	can_break_limbs = true
 
 
 func _process(delta: float) -> void:
 	super(delta)
 	if not alive or not active or freeze_time > 0.0:
+		return
+	if not can_shoot():
+		_state = State.WAIT
 		return
 	match _state:
 		State.WAIT:
@@ -55,12 +59,14 @@ func _process(delta: float) -> void:
 
 func _begin_aim() -> void:
 	_state = State.AIM
-	_timer = aim_time
+	# Membros feridos deixam o inimigo mais lento e menos preciso.
+	var penalty := aim_penalty()
+	_timer = aim_time * sqrt(penalty)
 	is_aiming = true
 	var aim_point := target.get_chest_global()
 	if randf() < head_chance:
 		aim_point = target.get_head_global()
-	aim_point += Vector2(randf_range(-1, 1), randf_range(-1, 1)) * aim_error
+	aim_point += Vector2(randf_range(-1, 1), randf_range(-1, 1)) * aim_error * penalty
 	var start := to_global(SHOULDER) + (aim_point - to_global(SHOULDER)).normalized() * (ARM_LENGTH + 14.0)
 	var dist := start.distance_to(aim_point)
 	var t := clampf(dist / 850.0, 0.5, 1.0) * randf_range(0.9, 1.12)

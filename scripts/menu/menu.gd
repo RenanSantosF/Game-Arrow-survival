@@ -26,6 +26,7 @@ func _ready() -> void:
 	_world.add_child(Fx.new())
 
 	_left = _make_archer(LEFT_SPOT, false, Color(0.12, 0.35, 0.85), Stickman.Accessory.BANDANA, Color(0.98, 0.78, 0.1), Vector2(-400, 0))
+	PlayerArcher.apply_rank_look(_left)
 	_right = _make_archer(RIGHT_SPOT, true, Color(0.82, 0.12, 0.12), Stickman.Accessory.HAT, Color(0.2, 0.2, 0.22), Vector2(400, 0))
 	_build_ui()
 
@@ -122,12 +123,15 @@ func _refresh_coins() -> void:
 
 func _on_upgrades() -> void:
 	var panel := UpgradePanel.new()
-	panel.closed.connect(_refresh_coins)
+	panel.closed.connect(func() -> void:
+		_refresh_coins()
+		PlayerArcher.apply_rank_look(_left))
 	_ui.add_child(panel)
 
 
 func _on_arrows() -> void:
 	var panel := ArrowSelectPanel.new()
+	panel.closed.connect(_refresh_coins)
 	_ui.add_child(panel)
 
 

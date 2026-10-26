@@ -180,7 +180,7 @@ func rebuild_arrow_bar() -> void:
 		icon.set_anchors_preset(Control.PRESET_FULL_RECT)
 		icon.offset_bottom = -18
 		b.add_child(icon)
-		var cost := UiKit.make_label(str(int(def["stamina"])), 18, Color(1, 0.85, 0.3), 5)
+		var cost := UiKit.make_label(str(int(round(GameData.arrow_stamina(def)))), 18, Color(1, 0.85, 0.3), 5)
 		cost.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 		cost.offset_top = -24
 		b.add_child(cost)

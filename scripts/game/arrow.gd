@@ -44,7 +44,9 @@ func launch(start: Vector2, initial_velocity: Vector2, arrow_def: Dictionary, ar
 	damage = arrow_damage
 	from_player = is_player
 	collision_mask = PLAYER_MASK if is_player else ENEMY_MASK
-	_pierce_left = 2 if def["id"] == "pierce" else 0
+	_pierce_left = 0
+	if def["id"] == "pierce":
+		_pierce_left = 3 if GameData.arrow_level("pierce") >= 3 else 2
 	global_position = start
 	velocity = initial_velocity
 	global_rotation = velocity.angle()
@@ -134,7 +136,8 @@ func _steer(delta: float) -> void:
 	var desired := (best.get_chest_global() - global_position).angle()
 	var current := velocity.angle()
 	var diff := wrapf(desired - current, -PI, PI)
-	var turn := clampf(diff, -HOMING_TURN * delta, HOMING_TURN * delta)
+	var max_turn := HOMING_TURN * GameData.arrow_effect("homing") * delta
+	var turn := clampf(diff, -max_turn, max_turn)
 	# Compensa a gravidade para a curva não "despencar".
 	velocity = velocity.rotated(turn) - Vector2(0, GRAVITY * delta * 0.7)
 

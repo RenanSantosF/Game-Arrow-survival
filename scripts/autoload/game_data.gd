@@ -6,9 +6,10 @@ signal sound_changed(enabled: bool)
 
 const SAVE_PATH := "user://save.cfg"
 
-## Multiplicador de dano por região do corpo.
+## Multiplicador de dano por região do corpo. A barriga é quase tão letal quanto a cabeça.
 const ZONE_MULTIPLIER := {
 	"head": 3.0,
+	"belly": 2.5,
 	"torso": 1.0,
 	"arm": 0.6,
 	"leg": 0.7,
@@ -119,6 +120,8 @@ var selected_arrow := "normal"
 var unlocked: Array = ["normal"]
 var coins := 0
 var upgrades := {}
+## Nível de melhoria de cada flecha (0 = sem melhoria).
+var arrow_levels := {}
 
 
 func _ready() -> void:
@@ -187,7 +190,83 @@ func bow_mult() -> float:
 	return 1.0 + 0.06 * upgrade_level("bow")
 
 
+## Soma dos níveis de melhoria do personagem (define o visual do arqueiro).
+func total_upgrade_levels() -> int:
+	var total := 0
+	for u in UPGRADES:
+		total += upgrade_level(u["id"])
+	return total
+
+
+## Título do arqueiro conforme as melhorias compradas.
+func player_rank_name() -> String:
+	var t := total_upgrade_levels()
+	if t >= 24:
+		return "Rei Arqueiro"
+	if t >= 14:
+		return "Cavaleiro"
+	if t >= 6:
+		return "Caçador"
+	return "Aprendiz"
+
+
 # --- Flechas ----------------------------------------------------------------------
+
+const ARROW_MAX_LEVEL := 5
+
+
+func arrow_level(id: String) -> int:
+	return int(arrow_levels.get(id, 0))
+
+
+## Preço do próximo nível de uma flecha, ou -1 se já está no máximo.
+func arrow_upgrade_cost(id: String) -> int:
+	var lv := arrow_level(id)
+	if lv >= ARROW_MAX_LEVEL:
+		return -1
+	var base := 20 + int(get_arrow(id)["unlock"]) / 2
+	return base * (lv + 1)
+
+
+func buy_arrow_upgrade(id: String) -> bool:
+	var cost := arrow_upgrade_cost(id)
+	if not is_unlocked(id) or cost < 0 or coins < cost:
+		return false
+	coins -= cost
+	arrow_levels[id] = arrow_level(id) + 1
+	save_data()
+	return true
+
+
+## Preço para comprar uma flecha ainda bloqueada (sem precisar dos abates seguidos).
+func arrow_unlock_cost(id: String) -> int:
+	return 40 + int(get_arrow(id)["unlock"]) * 4
+
+
+func buy_arrow(id: String) -> bool:
+	var cost := arrow_unlock_cost(id)
+	if is_unlocked(id) or coins < cost:
+		return false
+	coins -= cost
+	unlocked.append(id)
+	save_data()
+	return true
+
+
+## Dano da flecha com a melhoria (+12% por nível).
+func arrow_damage(def: Dictionary) -> float:
+	return float(def["damage"]) * (1.0 + 0.12 * arrow_level(def["id"]))
+
+
+## Estamina da flecha com a melhoria (-6% por nível).
+func arrow_stamina(def: Dictionary) -> float:
+	return float(def["stamina"]) * (1.0 - 0.06 * arrow_level(def["id"]))
+
+
+## Força do efeito especial (veneno, fogo, gelo, explosão, raio...): +15% por nível.
+func arrow_effect(id: String) -> float:
+	return 1.0 + 0.15 * arrow_level(id)
+
 
 func get_arrow(id: String) -> Dictionary:
 	for a in ARROWS:
@@ -262,6 +341,7 @@ func load_data() -> void:
 	selected_arrow = cfg.get_value("progress", "selected_arrow", "normal")
 	coins = cfg.get_value("progress", "coins", 0)
 	upgrades = cfg.get_value("progress", "upgrades", {})
+	arrow_levels = cfg.get_value("progress", "arrow_levels", {})
 	sessions = cfg.get_value("app", "sessions", 0)
 	sound_enabled = cfg.get_value("settings", "sound", true)
 	if not unlocked.has("normal"):
@@ -281,6 +361,7 @@ func save_data() -> void:
 	cfg.set_value("progress", "selected_arrow", selected_arrow)
 	cfg.set_value("progress", "coins", coins)
 	cfg.set_value("progress", "upgrades", upgrades)
+	cfg.set_value("progress", "arrow_levels", arrow_levels)
 	cfg.set_value("app", "sessions", sessions)
 	cfg.set_value("settings", "sound", sound_enabled)
 	cfg.save(SAVE_PATH)

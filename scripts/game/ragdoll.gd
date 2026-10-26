@@ -53,9 +53,11 @@ var _head_spin := 0.0
 var _head_attached := true
 ## Tamanho do personagem (chefes são maiores).
 var _size := 1.0
+var _draw_bow := true
 
 
-func setup_from(s: Stickman, zone: String, impulse: Vector2, severed: Array) -> void:
+## "missing" são partes já arrancadas em vida: não aparecem no corpo caindo.
+func setup_from(s: Stickman, zone: String, impulse: Vector2, severed: Array, missing: Array = []) -> void:
 	_color = s.current_color().darkened(0.1)
 	_bow_color = s.bow_color
 	_accessory = s.accessory
@@ -86,7 +88,8 @@ func setup_from(s: Stickman, zone: String, impulse: Vector2, severed: Array) -> 
 	# Empurrão extra na parte atingida.
 	var hit_points := {
 		"head": [P_HEAD],
-		"torso": [P_NECK, P_WAIST, P_HIP],
+		"torso": [P_NECK, P_WAIST],
+		"belly": [P_WAIST, P_HIP],
 		"arm": [P_ELBOW_F, P_HAND_F],
 		"leg": [P_KNEE_L, P_KNEE_R, P_FOOT_L, P_FOOT_R],
 	}
@@ -110,12 +113,33 @@ func setup_from(s: Stickman, zone: String, impulse: Vector2, severed: Array) -> 
 	_add_stick(P_NECK, P_HIP, false)
 
 	_head_angle = (_pos[P_HEAD] - _pos[P_NECK]).angle()
+	for part in missing:
+		_remove_part(part)
 	for part in severed:
 		_sever(part, impulse)
 
 
 func _add_stick(a: int, b: int, visible_line: bool) -> void:
 	_sticks.append([a, b, _pos[a].distance_to(_pos[b]), visible_line])
+
+
+## Tira do corpo uma parte que já tinha sido arrancada (sem desenhar nem sangrar de novo).
+func _remove_part(part: String) -> void:
+	var points: Array = []
+	match part:
+		"armF":
+			points = [P_ELBOW_F, P_HAND_F]
+			_draw_bow = false
+		"legL":
+			points = [P_KNEE_L, P_FOOT_L]
+		"legR":
+			points = [P_KNEE_R, P_FOOT_R]
+	var i := _sticks.size() - 1
+	while i >= 0:
+		var st: Array = _sticks[i]
+		if points.has(st[0]) or points.has(st[1]):
+			_sticks.remove_at(i)
+		i -= 1
 
 
 func _sever(part: String, impulse: Vector2) -> void:
@@ -287,10 +311,11 @@ func _draw() -> void:
 		if st[3]:
 			draw_line(_pos[st[0]], _pos[st[1]], _color, Stickman.LINE_WIDTH * _size, true)
 	# Arco caindo (curvado entre as duas pontas).
-	var a := _pos[P_BOW_A]
-	var b := _pos[P_BOW_B]
-	var mid := a.lerp(b, 0.5) + (b - a).orthogonal().normalized() * -10.0 * _facing
-	draw_polyline(PackedVector2Array([a, mid, b]), _bow_color, 4.5 * _size, true)
+	if _draw_bow:
+		var a := _pos[P_BOW_A]
+		var b := _pos[P_BOW_B]
+		var mid := a.lerp(b, 0.5) + (b - a).orthogonal().normalized() * -10.0 * _facing
+		draw_polyline(PackedVector2Array([a, mid, b]), _bow_color, 4.5 * _size, true)
 	# Cabeça.
 	var head := _pos[P_HEAD]
 	draw_circle(head, Stickman.HEAD_RADIUS * _size, _color)

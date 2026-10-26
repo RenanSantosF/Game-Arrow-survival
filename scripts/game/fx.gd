@@ -109,7 +109,8 @@ static func text(pos: Vector2, msg: String, color := Color.WHITE, size := 34, li
 	if instance._texts.size() >= MAX_TEXTS:
 		instance._texts.pop_front()
 	var t := FloatText.new()
-	t.pos = pos
+	# Mantém o texto dentro da tela (largura 720) para não cortar nas bordas.
+	t.pos = Vector2(clampf(pos.x, 190.0, 530.0), pos.y)
 	t.text = msg
 	t.color = color
 	t.size = size
