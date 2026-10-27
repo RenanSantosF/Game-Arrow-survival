@@ -122,17 +122,20 @@ func _refresh_coins() -> void:
 
 
 func _on_upgrades() -> void:
-	var panel := UpgradePanel.new()
-	panel.closed.connect(func() -> void:
-		_refresh_coins()
-		PlayerArcher.apply_rank_look(_left))
-	_ui.add_child(panel)
+	_open_arsenal(Arsenal.Tab.HERO)
 
 
 func _on_arrows() -> void:
-	var panel := ArrowSelectPanel.new()
-	panel.closed.connect(_refresh_coins)
-	_ui.add_child(panel)
+	_open_arsenal(Arsenal.Tab.ARROWS)
+
+
+func _open_arsenal(tab: Arsenal.Tab) -> void:
+	var arsenal := Arsenal.new()
+	arsenal.start_tab = tab
+	arsenal.closed.connect(func() -> void:
+		_refresh_coins()
+		PlayerArcher.apply_rank_look(_left))
+	_ui.add_child(arsenal)
 
 
 func _notification(what: int) -> void:

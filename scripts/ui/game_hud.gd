@@ -15,7 +15,6 @@ var _best_label: Label
 var _next_label: Label
 var _pause_button: Button
 var _arrow_bar: PanelContainer
-var _arrow_scroll: ScrollContainer
 var _arrow_box: HBoxContainer
 var _coins_label: Label
 var _wave_label: Label
@@ -116,15 +115,10 @@ func _ready() -> void:
 	_arrow_bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_arrow_bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_root.add_child(_arrow_bar)
-	# Com muitas flechas a barra rola para o lado (arraste com o dedo).
-	_arrow_scroll = ScrollContainer.new()
-	_arrow_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_arrow_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	_arrow_scroll.scroll_deadzone = 14
-	_arrow_bar.add_child(_arrow_scroll)
+	# No máximo 5 flechas equipadas: cabem todas, sem rolagem.
 	_arrow_box = HBoxContainer.new()
 	_arrow_box.add_theme_constant_override("separation", 8)
-	_arrow_scroll.add_child(_arrow_box)
+	_arrow_bar.add_child(_arrow_box)
 	_blockers.append(_arrow_bar)
 
 	_next_label = UiKit.make_label("", 22, Color(1, 1, 1, 0.9), 6)
@@ -168,10 +162,9 @@ func rebuild_arrow_bar() -> void:
 	for child in _arrow_box.get_children():
 		child.queue_free()
 	_arrow_buttons.clear()
-	for def in GameData.ARROWS:
-		if not GameData.is_unlocked(def["id"]):
-			continue
-		var id: String = def["id"]
+	# Só as flechas equipadas (espaços de flecha) vão para a partida.
+	for id: String in GameData.loadout:
+		var def := GameData.get_arrow(id)
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(84, 100)
 		b.focus_mode = Control.FOCUS_NONE
@@ -191,7 +184,6 @@ func rebuild_arrow_bar() -> void:
 		_arrow_box.add_child(b)
 		_arrow_buttons[id] = icon
 	_arrow_bar.visible = _arrow_buttons.size() > 1
-	_arrow_scroll.custom_minimum_size = Vector2(minf(_arrow_buttons.size() * 92.0 - 8.0, 620.0), 100)
 	_refresh_arrow_selection()
 
 

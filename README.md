@@ -32,7 +32,7 @@ a mesma assinatura de teste (`keystore/`) e um número de versão crescente.
 | Ação | Como |
 |---|---|
 | Mirar e atirar | Toque, **arraste o dedo para trás** (como um estilingue) e solte. Quanto mais puxar, mais forte. |
-| Trocar de flecha | Toque nos ícones na barra de baixo (ou em **FLECHAS** no menu). |
+| Trocar de flecha | Toque nos ícones na barra de baixo (só aparecem as flechas **equipadas**). |
 | Recuperar vida | Acerte a **maçã vermelha** que sobe do fundo da tela. |
 | Recuperar estamina | Acerte a **fruta-estrela amarela**. |
 | Pausar | Botão **II** no canto (ou o botão Voltar do Android). |
@@ -78,7 +78,11 @@ nova **era**: inimigos com novas cores, acessórios e proteções, e o céu muda
 - Precisão e velocidade dos inimigos chegam ao máximo na onda 29; depois disso vida e
   dano continuam subindo devagar.
 
-### Melhorias (menu → MELHORIAS, ou na tela de derrota)
+### Arsenal (menu → MELHORIAS ou FLECHAS, ou na tela de derrota)
+Uma tela só, com duas abas: **ARQUEIRO** (melhorias do personagem) e **FLECHAS**
+(equipar, melhorar e comprar flechas). Toda compra mostra o que muda (“190 » 210”).
+
+#### Melhorias do arqueiro
 Moedas: 1+ por abate, +1 na cabeça, mini-chefe 5+, chefe 20+, bônus por onda vencida.
 O visual do arqueiro evolui com as melhorias: Aprendiz (bandana) → Caçador (capuz) →
 Cavaleiro (elmo) → Rei Arqueiro (coroa).
@@ -94,7 +98,12 @@ Cavaleiro (elmo) → Rei Arqueiro (coroa).
 
 Preços em `scripts/autoload/game_data.gd` (constante `UPGRADES`).
 
-### Flechas (menu → FLECHAS)
+#### Espaços de flecha
+Só as flechas **equipadas** vão para a partida. Você começa com **2 espaços** (a Comum,
+fixa, + 1). Espaços extras custam caro: 3º = 400, 4º = 1000, 5º = 2200 moedas.
+Flechas novas desbloqueadas são equipadas sozinhas se houver espaço livre.
+
+#### Flechas
 Desbloqueie com abates seguidos (sem morrer) **ou compre com moedas**. Cada flecha tem
 **5 níveis de melhoria**: +12% de dano, −6% de estamina e +15% de efeito por nível
 (veneno/fogo/gelo duram mais, explosão maior, Vampira cura mais, Teleguiada vira mais;
@@ -168,8 +177,7 @@ scripts/
   menu/
     menu.gd                   Menu com duelo de stickmen ao fundo
     title_logo.gd             Título animado
-    arrow_select_panel.gd     Escolha de flechas
-    upgrade_panel.gd          Melhorias do personagem (compradas com moedas)
+    arsenal.gd                Arsenal: melhorias do arqueiro, espaços, equipar/melhorar/comprar flechas
   ui/
     ui_kit.gd                 Botões, painéis e transições no mesmo estilo
     game_hud.gd               HUD da partida

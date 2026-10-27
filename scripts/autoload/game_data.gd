@@ -98,6 +98,10 @@ const ARROWS := [
 	},
 ]
 
+## Espaços de flecha: começa com 2; o preço de cada espaço extra (3º, 4º e 5º) é alto.
+const START_SLOTS := 2
+const SLOT_COSTS := [400, 1000, 2200]
+
 ## Melhorias do personagem, compradas no menu com moedas.
 ## "cost" tem um preço por nível (o tamanho da lista é o nível máximo).
 const UPGRADES := [
@@ -117,6 +121,10 @@ var games_played := 0
 var sessions := 0
 var sound_enabled := true
 var selected_arrow := "normal"
+## Flechas levadas para a partida (a Comum sempre ocupa o primeiro espaço).
+var loadout: Array = ["normal"]
+## Quantos espaços de flecha o jogador tem (compra mais na tela de flechas).
+var arrow_slots := START_SLOTS
 var unlocked: Array = ["normal"]
 var coins := 0
 var upgrades := {}
@@ -249,8 +257,58 @@ func buy_arrow(id: String) -> bool:
 		return false
 	coins -= cost
 	unlocked.append(id)
+	equip(id)
 	save_data()
 	return true
+
+
+# --- Espaços de flecha e equipamento --------------------------------------------------
+
+func max_slots() -> int:
+	return START_SLOTS + SLOT_COSTS.size()
+
+
+## Preço do próximo espaço de flecha, ou -1 se já tem todos.
+func next_slot_cost() -> int:
+	var i := arrow_slots - START_SLOTS
+	return -1 if i >= SLOT_COSTS.size() else int(SLOT_COSTS[i])
+
+
+func buy_slot() -> bool:
+	var cost := next_slot_cost()
+	if cost < 0 or coins < cost:
+		return false
+	coins -= cost
+	arrow_slots += 1
+	save_data()
+	return true
+
+
+func is_equipped(id: String) -> bool:
+	return loadout.has(id)
+
+
+func has_free_slot() -> bool:
+	return loadout.size() < arrow_slots
+
+
+## Coloca a flecha num espaço livre. Retorna false se não há espaço.
+func equip(id: String) -> bool:
+	if not is_unlocked(id) or is_equipped(id) or not has_free_slot():
+		return false
+	loadout.append(id)
+	save_data()
+	return true
+
+
+## Tira a flecha da partida (a Comum não sai).
+func unequip(id: String) -> void:
+	if id == "normal" or not is_equipped(id):
+		return
+	loadout.erase(id)
+	if selected_arrow == id:
+		selected_arrow = "normal"
+	save_data()
 
 
 ## Dano da flecha com a melhoria (+12% por nível).
@@ -280,7 +338,7 @@ func is_unlocked(id: String) -> bool:
 
 
 func select_arrow(id: String) -> void:
-	if is_unlocked(id):
+	if is_equipped(id):
 		selected_arrow = id
 		save_data()
 
@@ -291,6 +349,8 @@ func check_unlocks(kills_in_a_row: int) -> Array:
 	for a in ARROWS:
 		if kills_in_a_row >= a["unlock"] and not unlocked.has(a["id"]):
 			unlocked.append(a["id"])
+			# Equipa sozinha se houver espaço livre.
+			equip(a["id"])
 			new_ones.append(a)
 	if not new_ones.is_empty():
 		save_data()
@@ -346,7 +406,18 @@ func load_data() -> void:
 	sound_enabled = cfg.get_value("settings", "sound", true)
 	if not unlocked.has("normal"):
 		unlocked.append("normal")
-	if not is_unlocked(selected_arrow):
+	arrow_slots = clampi(cfg.get_value("progress", "arrow_slots", START_SLOTS), START_SLOTS, max_slots())
+	loadout = cfg.get_value("progress", "loadout", [])
+	# Saves antigos (sem espaços): leva a Comum e a flecha que estava escolhida.
+	if loadout.is_empty():
+		loadout = ["normal"]
+		if selected_arrow != "normal" and is_unlocked(selected_arrow):
+			loadout.append(selected_arrow)
+	loadout = loadout.filter(func(id): return is_unlocked(id))
+	if not loadout.has("normal"):
+		loadout.push_front("normal")
+	loadout.resize(mini(loadout.size(), arrow_slots))
+	if not is_equipped(selected_arrow):
 		selected_arrow = "normal"
 
 
@@ -359,6 +430,8 @@ func save_data() -> void:
 	cfg.set_value("progress", "games_played", games_played)
 	cfg.set_value("progress", "unlocked", unlocked)
 	cfg.set_value("progress", "selected_arrow", selected_arrow)
+	cfg.set_value("progress", "loadout", loadout)
+	cfg.set_value("progress", "arrow_slots", arrow_slots)
 	cfg.set_value("progress", "coins", coins)
 	cfg.set_value("progress", "upgrades", upgrades)
 	cfg.set_value("progress", "arrow_levels", arrow_levels)

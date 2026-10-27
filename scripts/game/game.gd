@@ -661,7 +661,10 @@ func _on_enemy_died(s: Stickman, zone: String) -> void:
 
 	for def in GameData.check_unlocks(kills):
 		_new_arrows.append(def)
-		_hud.show_banner("NOVA FLECHA: %s!" % def["name"], Color(0.6, 1, 0.5), 2.5)
+		if GameData.is_equipped(def["id"]):
+			_hud.show_banner("NOVA FLECHA: %s!" % def["name"], Color(0.6, 1, 0.5), 2.5)
+		else:
+			_hud.show_banner("NOVA FLECHA: %s!\nEquipe no Arsenal" % def["name"], Color(0.6, 1, 0.5), 2.5)
 		_hud.rebuild_arrow_bar()
 		Sfx.play("unlock")
 	_hud.set_score(score, kills)
@@ -811,7 +814,7 @@ func _show_game_over() -> void:
 	_overlay.add_child(panel)
 	Sfx.play("gameover")
 	panel.revive_pressed.connect(func() -> void: Ads.show_rewarded())
-	panel.upgrades_pressed.connect(func() -> void: _overlay.add_child(UpgradePanel.new()))
+	panel.upgrades_pressed.connect(func() -> void: _overlay.add_child(Arsenal.new()))
 	panel.retry_pressed.connect(func() -> void:
 		Ads.maybe_show_interstitial(func() -> void: UiKit.fade_to_scene(self, "res://scenes/game.tscn")))
 	panel.menu_pressed.connect(func() -> void:
