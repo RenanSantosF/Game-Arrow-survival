@@ -116,6 +116,7 @@ var headshots := 0
 var elapsed := 0.0
 var revived := false
 var coins_doubled := false
+var _offer_shown := false
 var wave := 0
 var run_coins := 0
 
@@ -305,7 +306,10 @@ func _on_player_died(_p: Stickman, _zone: String) -> void:
 	var t := get_tree().create_timer(1.3, true, false, true)
 	t.timeout.connect(func() -> void:
 		Engine.time_scale = 1.0
-		_show_game_over())
+		if not revived and Ads.is_available():
+			_show_continue_offer()
+		else:
+			_show_game_over())
 
 
 # --- Flechas e explosões --------------------------------------------------------
@@ -810,6 +814,24 @@ func _finish_run() -> bool:
 	return GameData.submit_result(score, kills, wave)
 
 
+## Depois de morrer: "CONTINUAR?" com anúncio premiado (uma vez por partida).
+func _show_continue_offer() -> void:
+	state = State.OVER
+	_offer_shown = true
+	var offer := ContinuePanel.new()
+	_overlay.add_child(offer)
+	offer.accepted.connect(func() -> void:
+		offer.queue_free()
+		# Se o anúncio fechar sem dar a recompensa, vai para a tela de derrota.
+		Ads.ad_closed.connect(func() -> void:
+			if not revived:
+				_show_game_over(), CONNECT_ONE_SHOT)
+		Ads.show_rewarded(_revive))
+	offer.declined.connect(func() -> void:
+		offer.queue_free()
+		_show_game_over())
+
+
 func _show_game_over() -> void:
 	state = State.OVER
 	var is_record := _finish_run() and score > 0
@@ -822,7 +844,7 @@ func _show_game_over() -> void:
 	panel.coins = run_coins
 	panel.seconds = elapsed
 	panel.is_record = is_record
-	panel.can_revive = not revived and Ads.is_rewarded_ready()
+	panel.can_revive = not revived and not _offer_shown and Ads.is_rewarded_ready()
 	panel.can_double = not coins_doubled and Ads.is_rewarded_ready()
 	panel.new_arrows = _new_arrows
 	_overlay.add_child(panel)

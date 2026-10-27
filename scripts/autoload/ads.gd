@@ -33,6 +33,7 @@ var _last_ad_time := -1000.0
 var _reward_pending := false
 var _on_reward := Callable()
 var _initialized := false
+var _rewarded_loading := false
 ## Mensagem do último erro do premiado (aparece no Arsenal para diagnóstico).
 var rewarded_error_message := ""
 ## Último erro ao carregar o anúncio premiado (código do AdMob, -1 = nenhum).
@@ -68,6 +69,12 @@ func _load_all() -> void:
 ## Anúncios só existem no celular (Android com o plugin AdMob).
 func is_available() -> bool:
 	return _enabled
+
+
+## Pede um anúncio premiado agora, se ainda não tiver um carregado (ou carregando).
+func request_rewarded() -> void:
+	if _enabled and _initialized:
+		_load_rewarded()
 
 
 func is_rewarded_ready() -> bool:
@@ -165,13 +172,16 @@ func _load_interstitial() -> void:
 
 
 func _load_rewarded() -> void:
-	if _rewarded != null:
+	if _rewarded != null or _rewarded_loading:
 		return
+	_rewarded_loading = true
 	var cb := RewardedAdLoadCallback.new()
 	cb.on_ad_loaded = func(ad: RewardedAd) -> void:
 		_rewarded = ad
+		_rewarded_loading = false
 		rewarded_error_code = -1
 	cb.on_ad_failed_to_load = func(error: LoadAdError) -> void:
+		_rewarded_loading = false
 		rewarded_error_code = error.code if error else 0
 		rewarded_error_message = error.message if error else ""
 		push_warning("AdMob premiado não carregou: %s" % (error.message if error else "?"))
