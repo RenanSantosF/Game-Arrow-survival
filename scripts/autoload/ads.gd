@@ -21,8 +21,8 @@ const REWARDED_ID := "ca-app-pub-4311255826061303/7794976879"
 const TEST_INTERSTITIAL_ID := "ca-app-pub-3940256099942544/1033173712"
 const TEST_REWARDED_ID := "ca-app-pub-3940256099942544/5224354917"
 
-const INTERSTITIAL_EVERY := 3          ## Partidas entre intersticiais.
-const MIN_SECONDS_BETWEEN := 150.0     ## Intervalo mínimo entre intersticiais.
+const INTERSTITIAL_EVERY := 1          ## Partidas entre intersticiais (1 = toda partida).
+const MIN_SECONDS_BETWEEN := 60.0      ## Intervalo mínimo entre intersticiais.
 const MIN_GAME_SECONDS := 25.0         ## Partidas muito curtas não contam.
 
 var _enabled := false

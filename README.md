@@ -143,7 +143,7 @@ Regras para não incomodar (`scripts/autoload/ads.gd`):
 - **Nunca** há anúncio ao abrir o app, nem anúncio obrigatório na **primeira sessão**
   (a primeira vez que o jogo é aberto depois de instalado).
 - **Intersticial** só entre partidas (ao tocar em "Jogar de novo" ou "Menu"), no máximo
-  **a cada 3 partidas** e com pelo menos **150 s** entre um e outro. Partidas com menos
+  **a cada partida** (as partidas são longas) e com pelo menos **60 s** entre um e outro. Partidas com menos
   de 25 s não contam.
 - **Premiados (sempre opcionais):**
   - tela de derrota → **Continuar de onde parou** (uma vez por partida, 60% da vida,
