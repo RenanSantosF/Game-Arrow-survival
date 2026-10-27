@@ -17,6 +17,10 @@ config/quit_on_go_back=false
 config/features=PackedStringArray("4.3", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[admob]
+
+general/android/app_id="ca-app-pub-4311255826061303~9874345303"
+
 [autoload]
 
 GameData="*res://scripts/autoload/game_data.gd"

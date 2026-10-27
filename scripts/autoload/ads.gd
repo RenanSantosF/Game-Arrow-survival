@@ -9,13 +9,17 @@ extends Node
 ##   (continuar de onde parou, dobrar as moedas da partida, moedas grátis no Arsenal).
 ## - Sem banners durante o jogo.
 ##
-## Os IDs abaixo são os IDs DE TESTE oficiais do Google. Antes de publicar,
-## troque pelos IDs da sua conta AdMob (veja o README).
+## IDs: a versão da Play Store (AAB) usa os blocos reais da conta AdMob. O APK do
+## GitHub é exportado com a marca "test_ads" e mostra os anúncios DE TESTE do Google,
+## para quem testa nunca clicar num anúncio real (o AdMob bane contas por isso).
+## O App ID real fica em project.godot, seção [admob].
 
 signal ad_closed
 
-const INTERSTITIAL_ID := "ca-app-pub-3940256099942544/1033173712"
-const REWARDED_ID := "ca-app-pub-3940256099942544/5224354917"
+const INTERSTITIAL_ID := "ca-app-pub-4311255826061303/4140344880"
+const REWARDED_ID := "ca-app-pub-4311255826061303/7794976879"
+const TEST_INTERSTITIAL_ID := "ca-app-pub-3940256099942544/1033173712"
+const TEST_REWARDED_ID := "ca-app-pub-3940256099942544/5224354917"
 
 const INTERSTITIAL_EVERY := 3          ## Partidas entre intersticiais.
 const MIN_SECONDS_BETWEEN := 150.0     ## Intervalo mínimo entre intersticiais.
@@ -140,7 +144,7 @@ func _load_interstitial() -> void:
 		_interstitial = ad
 	cb.on_ad_failed_to_load = func(_error: LoadAdError) -> void:
 		get_tree().create_timer(60.0).timeout.connect(_load_interstitial)
-	InterstitialAdLoader.new().load(INTERSTITIAL_ID, AdRequest.new(), cb)
+	InterstitialAdLoader.new().load(TEST_INTERSTITIAL_ID if _test_ads() else INTERSTITIAL_ID, AdRequest.new(), cb)
 
 
 func _load_rewarded() -> void:
@@ -151,4 +155,9 @@ func _load_rewarded() -> void:
 		_rewarded = ad
 	cb.on_ad_failed_to_load = func(_error: LoadAdError) -> void:
 		get_tree().create_timer(60.0).timeout.connect(_load_rewarded)
-	RewardedAdLoader.new().load(REWARDED_ID, AdRequest.new(), cb)
+	RewardedAdLoader.new().load(TEST_REWARDED_ID if _test_ads() else REWARDED_ID, AdRequest.new(), cb)
+
+
+## Anúncios de teste: APK de testes do GitHub (marca "test_ads") ou build de depuração.
+func _test_ads() -> bool:
+	return OS.has_feature("test_ads") or OS.is_debug_build()

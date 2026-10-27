@@ -38,6 +38,8 @@ fi
 
 mkdir -p build
 "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
+# APK para testar (instalado pelo GitHub): anúncios DE TESTE, nunca reais.
+sed -i 's/^custom_features=.*/custom_features="test_ads"/' export_presets.cfg
 "$GODOT" --headless --path . --export-release "Android" build/ArrowSurvival.apk
 ls -lh build/ArrowSurvival.apk
 
@@ -49,6 +51,8 @@ if [ -n "${UPLOAD_KEYSTORE_BASE64:-}" ]; then
   export GODOT_ANDROID_KEYSTORE_RELEASE_USER="$UPLOAD_KEY_ALIAS"
   export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$UPLOAD_KEYSTORE_PASSWORD"
   sed -i "s/^gradle_build\/export_format=.*/gradle_build\/export_format=1/" export_presets.cfg
+  # Versão da Play Store: anúncios reais.
+  sed -i 's/^custom_features=.*/custom_features=""/' export_presets.cfg
   "$GODOT" --headless --path . --export-release "Android" build/ArrowSurvival.aab
   rm -f "$UPLOAD_KEYSTORE"
   ls -lh build/ArrowSurvival.aab
