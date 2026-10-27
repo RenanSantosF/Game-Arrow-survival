@@ -44,6 +44,10 @@ enabled=PackedStringArray("res://addons/admob/plugin.cfg")
 
 pointing/emulate_touch_from_mouse=true
 
+[internationalization]
+
+locale/fallback="pt"
+
 [layer_names]
 
 2d_physics/layer_1="mundo"
