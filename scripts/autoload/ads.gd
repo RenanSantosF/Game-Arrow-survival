@@ -32,6 +32,9 @@ var _games_since_ad := 0
 var _last_ad_time := -1000.0
 var _reward_pending := false
 var _on_reward := Callable()
+var _initialized := false
+## Mensagem do último erro do premiado (aparece no Arsenal para diagnóstico).
+var rewarded_error_message := ""
 ## Último erro ao carregar o anúncio premiado (código do AdMob, -1 = nenhum).
 ## 3 = sem anúncio disponível (comum em conta/app novos), 2 = sem internet,
 ## 1 = pedido inválido (ID errado), 0 = erro interno.
@@ -43,9 +46,18 @@ func _ready() -> void:
 	_enabled = OS.get_name() == "Android" and Engine.has_singleton("PoingGodotAdMob")
 	if not _enabled:
 		return
-	MobileAds.initialize()
-	# Carrega com um pequeno atraso para não pesar na abertura do jogo.
-	get_tree().create_timer(4.0).timeout.connect(_load_all)
+	# Só pede anúncios depois que o SDK do Google terminar de iniciar
+	# (pedir antes pode falhar com erro de rede, código 2).
+	var listener := OnInitializationCompleteListener.new()
+	listener.on_initialization_complete = func(_status: InitializationStatus) -> void:
+		_initialized = true
+		_load_all()
+	MobileAds.initialize(listener)
+	# Garantia: se o aviso de "pronto" não chegar, tenta mesmo assim depois de um tempo.
+	get_tree().create_timer(12.0).timeout.connect(func() -> void:
+		if not _initialized:
+			_initialized = true
+			_load_all())
 
 
 func _load_all() -> void:
@@ -161,8 +173,10 @@ func _load_rewarded() -> void:
 		rewarded_error_code = -1
 	cb.on_ad_failed_to_load = func(error: LoadAdError) -> void:
 		rewarded_error_code = error.code if error else 0
+		rewarded_error_message = error.message if error else ""
 		push_warning("AdMob premiado não carregou: %s" % (error.message if error else "?"))
-		get_tree().create_timer(60.0).timeout.connect(_load_rewarded)
+		# Erro de rede: tenta de novo logo; outros erros: espera 1 minuto.
+		get_tree().create_timer(15.0 if rewarded_error_code == 2 else 60.0).timeout.connect(_load_rewarded)
 	RewardedAdLoader.new().load(TEST_REWARDED_ID if _test_ads() else REWARDED_ID, AdRequest.new(), cb)
 
 

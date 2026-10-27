@@ -96,6 +96,7 @@ func cancel_aim() -> void:
 		aim_guide.hide_aim()
 
 
+## Começo da mira: só fora dos botões (_unhandled_input não recebe toques em botões).
 func _unhandled_input(event: InputEvent) -> void:
 	if not alive or not input_enabled:
 		return
@@ -110,13 +111,23 @@ func _unhandled_input(event: InputEvent) -> void:
 			is_aiming = true
 			Sfx.play("draw", -8.0)
 			_update_aim(touch.position)
-		elif not touch.pressed and touch.index == _touch_index:
-			_release(touch.position)
-	elif event is InputEventScreenDrag:
+
+
+## Arrastar e soltar: em _input, para a mira continuar mesmo quando o dedo passa
+## por cima da barra de flechas ou de outro botão (que "engoliriam" o toque).
+func _input(event: InputEvent) -> void:
+	if _touch_index == -1 or not alive or not input_enabled:
+		return
+	if event is InputEventScreenDrag:
 		var drag := event as InputEventScreenDrag
 		if drag.index == _touch_index:
 			_finger = drag.position
 			_update_aim(drag.position)
+	elif event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if not touch.pressed and touch.index == _touch_index:
+			_release(touch.position)
+			get_viewport().set_input_as_handled()
 
 
 func _update_aim(finger: Vector2) -> void:

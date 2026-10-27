@@ -805,6 +805,7 @@ func _refresh_free_button() -> void:
 		# Mostra o código do AdMob quando o anúncio falha (ajuda a descobrir o motivo).
 		if Ads.rewarded_error_code >= 0:
 			tag.show_text(tr("Sem anúncio agora (código %d)") % Ads.rewarded_error_code, false)
+			tag.label.tooltip_text = Ads.rewarded_error_message
 		else:
 			tag.show_text(tr("Carregando anúncio..."), false)
 		_restyle(_free_btn, GRAY)

@@ -20,6 +20,7 @@ var _coins_label: Label
 
 func _ready() -> void:
 	randomize()
+	Music.set_mode(false)
 	add_child(SkyBackground.new())
 	_world = Node2D.new()
 	add_child(_world)

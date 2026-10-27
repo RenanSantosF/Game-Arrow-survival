@@ -171,6 +171,8 @@ scripts/
   autoload/
     game_data.gd              Flechas, recorde, desbloqueios e opções salvos (user://save.cfg)
     sfx.gd                    Efeitos sonoros sintetizados por código (sem arquivos de áudio)
+    music.gd                  Música de fundo em loop, sintetizada por código (numa thread)
+    lang.gd                   Idiomas (português, inglês e espanhol) e detecção do aparelho
     ads.gd                    Anúncios e regras de frequência
   game/
     game.gd                   Partida: ondas, eras, chefes, frutas, pontos, moedas, derrota, reviver

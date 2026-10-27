@@ -154,6 +154,7 @@ var _dead_spots: Array = []
 func _ready() -> void:
 	instance = self
 	randomize()
+	Music.set_mode(true)
 	GameData.start_game()
 
 	_sky = SkyBackground.new()
