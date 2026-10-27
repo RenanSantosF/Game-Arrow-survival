@@ -291,15 +291,14 @@ func _hurt_limb(zone: String, dmg: float, point: Vector2, dir: Vector2, heavy: b
 		arm_state = new_state
 	else:
 		leg_state = new_state
-	var label := "BRAÇO" if zone == "arm" else "PERNA"
 	if new_state == 1:
 		Sfx.play("bone")
-		Fx.text(point + Vector2(0, -40), "%s QUEBRAD%s!" % [label, "O" if zone == "arm" else "A"], Color(1, 0.8, 0.5), 30, 1.0)
+		Fx.text(point + Vector2(0, -40), tr("BRAÇO QUEBRADO!") if zone == "arm" else tr("PERNA QUEBRADA!"), Color(1, 0.8, 0.5), 30, 1.0)
 		Fx.burst(point, -dir, 5, Color(0.95, 0.93, 0.85), 260.0, 0.8, 2.5, 900.0, 0.4, Fx.Kind.SPARK)
 		_lean_velocity += 3.0 * get_facing()
 	else:
 		_sever_limb(zone, dir)
-		Fx.text(point + Vector2(0, -40), "%s ARRANCAD%s!" % [label, "O" if zone == "arm" else "A"], Color(1, 0.45, 0.4), 32, 1.1)
+		Fx.text(point + Vector2(0, -40), tr("BRAÇO ARRANCADO!") if zone == "arm" else tr("PERNA ARRANCADA!"), Color(1, 0.45, 0.4), 32, 1.1)
 
 
 func _sever_limb(zone: String, dir: Vector2) -> void:
@@ -354,7 +353,7 @@ func break_shield() -> void:
 	var center := _shield_area.to_global(Vector2(SHIELD_OFFSET.x * get_facing(), SHIELD_OFFSET.y))
 	Fx.burst(center, Vector2.UP, 18, shield_color, 340.0, PI, 7.0, 1100.0, 0.9)
 	Fx.burst(center, Vector2.UP, 8, shield_color.lightened(0.4), 420.0, PI, 3.0, 900.0, 0.5, Fx.Kind.SPARK)
-	Fx.text(center + Vector2(0, -60), "ESCUDO QUEBRADO!", Color(0.85, 0.95, 1.0), 30, 1.0)
+	Fx.text(center + Vector2(0, -60), tr("ESCUDO QUEBRADO!"), Color(0.85, 0.95, 1.0), 30, 1.0)
 	Sfx.play("shield_break")
 	_shield_area.queue_free()
 	_shield_area = null

@@ -240,9 +240,9 @@ func on_player_arrow_hit(target: Stickman, arrow: Arrow, zone: String, dmg: floa
 	if gain > 0.0:
 		player.stamina = minf(player.stamina + gain, player.max_stamina)
 		if zone == "head" or zone == "belly":
-			Fx.text(player.to_global(Vector2(0, -230)), "+%d ESTAMINA" % int(gain), Color(1, 0.88, 0.3), 26, 0.9)
+			Fx.text(player.to_global(Vector2(0, -230)), tr("+%d ESTAMINA") % int(gain), Color(1, 0.88, 0.3), 26, 0.9)
 	if zone == "belly" and target.alive:
-		Fx.text(point + Vector2(0, -30), "NA BARRIGA!", Color(1, 0.6, 0.3), 28, 0.8)
+		Fx.text(point + Vector2(0, -30), tr("NA BARRIGA!"), Color(1, 0.6, 0.3), 28, 0.8)
 	var effect := GameData.arrow_effect(arrow.def["id"])
 	match arrow.def["id"]:
 		"vampire":
@@ -257,7 +257,7 @@ func on_player_arrow_hit(target: Stickman, arrow: Arrow, zone: String, dmg: floa
 
 func _give_arrow_xp(id: String, amount: int) -> void:
 	if GameData.add_arrow_xp(id, amount):
-		_hud.show_banner("%s PRONTA PARA MELHORAR!" % GameData.get_arrow(id)["name"].to_upper(), Color(0.55, 0.9, 1.0), 1.8)
+		_hud.show_banner(tr("%s PRONTA PARA MELHORAR!") % tr(GameData.get_arrow(id)["name"]).to_upper(), Color(0.55, 0.9, 1.0), 1.8)
 		Sfx.play("unlock", -8.0)
 
 
@@ -379,7 +379,7 @@ func _era_def_index() -> int:
 
 
 func era_title() -> String:
-	var title: String = era_def()["name"]
+	var title: String = tr(era_def()["name"])
 	var lap := era_index() / ERAS.size()
 	if era_index() >= ERAS.size():
 		lap = (era_index() - 1) / (ERAS.size() - 1)
@@ -434,14 +434,14 @@ func _start_wave(n: int) -> void:
 	_spawn_timer = 0.6
 	if new_era:
 		_sky.set_theme(_era_def_index())
-		_hud.show_banner("ERA %d: %s" % [era_index() + 1, era_title().to_upper()], Color(0.7, 0.9, 1.0), 2.0)
+		_hud.show_banner(tr("ERA %d: %s") % [era_index() + 1, era_title().to_upper()], Color(0.7, 0.9, 1.0), 2.0)
 		Sfx.play("unlock", -4.0)
 	elif is_boss_wave():
-		_hud.show_banner("CHEFE: %s!" % era_def()["boss"]["name"], Color(1, 0.35, 0.3), 2.0)
+		_hud.show_banner(tr("CHEFE: %s!") % tr(era_def()["boss"]["name"]), Color(1, 0.35, 0.3), 2.0)
 		Sfx.play("boss")
 		add_shake(10.0)
 	else:
-		_hud.show_banner("ONDA %d" % n, UiKit.GOLD, 1.2)
+		_hud.show_banner(tr("ONDA %d") % n, UiKit.GOLD, 1.2)
 		Sfx.play("wave", -4.0)
 	_update_wave_label()
 
@@ -456,13 +456,13 @@ func _complete_wave() -> void:
 		var heal := player.max_hp * (0.35 if boss_wave else 0.12)
 		player.hp = minf(player.hp + heal, player.max_hp)
 		player.stamina = minf(player.stamina + 30.0, player.max_stamina)
-		Fx.text(player.to_global(Vector2(0, -230)), "+%d VIDA" % int(heal), Color(1, 0.45, 0.45), 30, 1.2)
+		Fx.text(player.to_global(Vector2(0, -230)), tr("+%d VIDA") % int(heal), Color(1, 0.45, 0.45), 30, 1.2)
 	if boss_wave:
-		_hud.show_banner("ERA VENCIDA!  +%d moedas" % bonus, Color(0.6, 1, 0.5), 2.0)
+		_hud.show_banner(tr("ERA VENCIDA!  +%d moedas") % bonus, Color(0.6, 1, 0.5), 2.0)
 		Sfx.play("record", -4.0)
 		_wave_break = 3.5
 	else:
-		_hud.show_banner("ONDA %d COMPLETA!  +%d moedas" % [wave, bonus], Color(0.6, 1, 0.5), 1.4)
+		_hud.show_banner(tr("ONDA %d COMPLETA!  +%d moedas") % [wave, bonus], Color(0.6, 1, 0.5), 1.4)
 		Sfx.play("wave", -4.0)
 		_wave_break = 2.2
 	_update_wave_label()
@@ -523,7 +523,7 @@ func _spawn_enemy(kind: String) -> bool:
 
 	if is_captain:
 		style = era["captain"]
-		e.display_name = style["name"]
+		e.display_name = tr(style["name"])
 		e.scale = Vector2.ONE * 1.2
 		e.max_hp *= 2.6
 		e.aim_error *= 0.8
@@ -534,7 +534,7 @@ func _spawn_enemy(kind: String) -> bool:
 		shield_hp = float(style["shield"]) * over
 	elif is_boss:
 		style = era["boss"]
-		e.display_name = style["name"]
+		e.display_name = tr(style["name"])
 		e.scale = Vector2.ONE * (float(style["size"]) / platform.size)
 		e.max_hp = (200.0 + wave * 14.0) * over
 		e.aim_time *= 1.15
@@ -570,7 +570,7 @@ func _spawn_enemy(kind: String) -> bool:
 		add_shake(12.0)
 		Sfx.play("boss")
 	elif is_captain:
-		_hud.show_banner("MINI-CHEFE: %s" % e.display_name.to_upper(), Color(1, 0.6, 0.3), 1.4)
+		_hud.show_banner(tr("MINI-CHEFE: %s") % e.display_name.to_upper(), Color(1, 0.6, 0.3), 1.4)
 		Sfx.play("spawn", -2.0)
 	else:
 		Sfx.play("spawn", -6.0)
@@ -644,28 +644,28 @@ func _on_enemy_died(s: Stickman, zone: String) -> void:
 	var coins := e.coin_value
 	if zone == "belly":
 		pts += 8
-		Fx.text(pos + Vector2(0, -50), "NA BARRIGA!", Color(1, 0.6, 0.3), 40, 1.0)
+		Fx.text(pos + Vector2(0, -50), tr("NA BARRIGA!"), Color(1, 0.6, 0.3), 40, 1.0)
 	if zone == "head":
 		headshots += 1
 		pts += 15
 		coins += 1
-		Fx.text(pos + Vector2(0, -50), "NA CABEÇA!", UiKit.GOLD, 44, 1.2)
+		Fx.text(pos + Vector2(0, -50), tr("NA CABEÇA!"), UiKit.GOLD, 44, 1.2)
 		_slow_motion(0.3, 0.35)
 	if e == _boss:
 		_boss = null
 		_hud.hide_boss()
-		Fx.text(pos + Vector2(0, -110), "CHEFE DERROTADO!", Color(1, 0.5, 0.3), 46, 1.6)
+		Fx.text(pos + Vector2(0, -110), tr("CHEFE DERROTADO!"), Color(1, 0.5, 0.3), 46, 1.6)
 		_slow_motion(0.25, 0.6)
 		add_shake(16.0)
 	_combo = _combo + 1 if _combo_timer > 0.0 else 1
 	_combo_timer = COMBO_WINDOW
 	if _combo >= 2:
 		pts += 10 * (_combo - 1)
-		_hud.show_banner("COMBO x%d!" % _combo, Color(1, 0.6, 0.2), 1.0)
+		_hud.show_banner(tr("COMBO x%d!") % _combo, Color(1, 0.6, 0.2), 1.0)
 	score += pts
 	run_coins += coins
 	Fx.text(pos, "+%d" % pts, Color.WHITE, 38, 1.0)
-	Fx.text(pos + Vector2(0, 42), "+%d moeda%s" % [coins, "s" if coins > 1 else ""], UiKit.GOLD, 26, 1.0)
+	Fx.text(pos + Vector2(0, 42), tr("+1 moeda") if coins == 1 else tr("+%d moedas") % coins, UiKit.GOLD, 26, 1.0)
 	add_shake(6.0)
 	if is_instance_valid(e.platform):
 		(e.platform as FloatingPlatform).crumble(0.6)
@@ -674,9 +674,9 @@ func _on_enemy_died(s: Stickman, zone: String) -> void:
 	for def in GameData.check_unlocks(kills):
 		_new_arrows.append(def)
 		if GameData.is_equipped(def["id"]):
-			_hud.show_banner("NOVA FLECHA: %s!" % def["name"], Color(0.6, 1, 0.5), 2.5)
+			_hud.show_banner(tr("NOVA FLECHA: %s!") % tr(def["name"]), Color(0.6, 1, 0.5), 2.5)
 		else:
-			_hud.show_banner("NOVA FLECHA: %s!\nEquipe no Arsenal" % def["name"], Color(0.6, 1, 0.5), 2.5)
+			_hud.show_banner(tr("NOVA FLECHA: %s!\nEquipe no Arsenal") % tr(def["name"]), Color(0.6, 1, 0.5), 2.5)
 		_hud.rebuild_arrow_bar()
 		Sfx.play("unlock")
 	_hud.set_score(score, kills)
@@ -713,10 +713,10 @@ func collect_fruit(f: Fruit) -> void:
 		return
 	if f.kind == Fruit.Kind.HEALTH:
 		player.hp = minf(player.hp + HEAL_AMOUNT, player.max_hp)
-		Fx.text(f.global_position, "+%d VIDA" % int(HEAL_AMOUNT), Color(1, 0.45, 0.45), 36, 1.2)
+		Fx.text(f.global_position, tr("+%d VIDA") % int(HEAL_AMOUNT), Color(1, 0.45, 0.45), 36, 1.2)
 	else:
 		player.stamina = minf(player.stamina + STAMINA_AMOUNT, player.max_stamina)
-		Fx.text(f.global_position, "+%d ESTAMINA" % int(STAMINA_AMOUNT), Color(1, 0.88, 0.3), 36, 1.2)
+		Fx.text(f.global_position, tr("+%d ESTAMINA") % int(STAMINA_AMOUNT), Color(1, 0.88, 0.3), 36, 1.2)
 	score += 5
 	_hud.set_score(score, kills)
 
@@ -861,7 +861,7 @@ func _revive() -> void:
 	state = State.PLAYING
 	_spawn_player(true)
 	_hud.set_controls_visible(true)
-	_hud.show_banner("DE VOLTA À LUTA!", Color(0.6, 1, 0.5), 1.5)
+	_hud.show_banner(tr("DE VOLTA À LUTA!"), Color(0.6, 1, 0.5), 1.5)
 	for e in enemies:
 		if is_instance_valid(e):
 			e.target = player

@@ -59,7 +59,7 @@ func _build_ui() -> void:
 	UiKit.anchor(logo, Control.PRESET_CENTER_TOP, -360, 70, 360, 330)
 	root.add_child(logo)
 
-	var rec_text := "Recorde: %d   •   Melhor onda: %d" % [GameData.best_score, GameData.best_wave]
+	var rec_text := tr("Recorde: %d   •   Melhor onda: %d") % [GameData.best_score, GameData.best_wave]
 	var rec := UiKit.make_label(rec_text, 26, Color(1, 0.92, 0.7), 7)
 	UiKit.anchor(rec, Control.PRESET_CENTER_TOP, -340, 340, 340, 380)
 	root.add_child(rec)
@@ -86,11 +86,21 @@ func _build_ui() -> void:
 	upgrades.pressed.connect(_on_upgrades)
 	box.add_child(upgrades)
 
-	_sound_button = UiKit.make_button(_sound_text(), Color(0.22, 0.45, 0.75), 30, Vector2(460, 80))
+	# Som e idioma lado a lado.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	box.add_child(row)
+	_sound_button = UiKit.make_button(_sound_text(), Color(0.22, 0.45, 0.75), 24, Vector2(224, 80))
 	_sound_button.pressed.connect(func() -> void:
 		GameData.set_sound(not GameData.sound_enabled)
 		_sound_button.text = _sound_text())
-	box.add_child(_sound_button)
+	row.add_child(_sound_button)
+	var lang := UiKit.make_button(tr("IDIOMA: %s") % Lang.LANGUAGE_NAMES[Lang.current()], Color(0.22, 0.45, 0.75), 24, Vector2(224, 80))
+	lang.pressed.connect(func() -> void:
+		Lang.cycle()
+		# Recarrega o menu para todos os textos mudarem de idioma.
+		get_tree().reload_current_scene())
+	row.add_child(lang)
 
 	var hint := UiKit.make_label("Puxe o dedo para trás e solte para atirar.\nAcerte as frutas: vermelha = vida, amarela = estamina.", 20, Color(1, 1, 1, 0.9), 5)
 	UiKit.anchor(hint, Control.PRESET_BOTTOM_WIDE, 0, -80, 0, -20)
@@ -99,7 +109,7 @@ func _build_ui() -> void:
 	# Entrada animada dos botões e pulsação do JOGAR.
 	await get_tree().process_frame
 	var delay := 0.9
-	for b in [play, arrows, upgrades, _sound_button]:
+	for b in [play, arrows, upgrades, _sound_button, lang]:
 		UiKit.pop_in(b, delay)
 		delay += 0.12
 	var pulse := play.create_tween().set_loops()
@@ -118,7 +128,7 @@ func _on_play() -> void:
 
 
 func _refresh_coins() -> void:
-	_coins_label.text = "Moedas: %d" % GameData.coins
+	_coins_label.text = tr("Moedas: %d") % GameData.coins
 
 
 func _on_upgrades() -> void:

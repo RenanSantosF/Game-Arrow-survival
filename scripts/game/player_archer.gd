@@ -146,7 +146,7 @@ func _release(finger: Vector2) -> void:
 		stamina = 0.0
 		if _tired_msg_cooldown <= 0.0:
 			_tired_msg_cooldown = 2.0
-			Fx.text(to_global(Vector2(0, -210)), "CANSADO!", Color(1, 0.85, 0.3), 30, 1.0)
+			Fx.text(to_global(Vector2(0, -210)), tr("CANSADO!"), Color(1, 0.85, 0.3), 30, 1.0)
 	else:
 		stamina -= cost
 	_cooldown_left = cooldown

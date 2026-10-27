@@ -131,6 +131,8 @@ var total_kills := 0
 var games_played := 0
 var sessions := 0
 var sound_enabled := true
+## Idioma: "auto" (do aparelho), "pt", "en" ou "es". Veja o autoload Lang.
+var language := "auto"
 var selected_arrow := "normal"
 ## Flechas levadas para a partida (a Comum sempre ocupa o primeiro espaço).
 var loadout: Array = ["normal"]
@@ -480,6 +482,7 @@ func load_data() -> void:
 	free_coin_day = cfg.get_value("ads", "free_coin_day", "")
 	sessions = cfg.get_value("app", "sessions", 0)
 	sound_enabled = cfg.get_value("settings", "sound", true)
+	language = cfg.get_value("settings", "language", "auto")
 	if not unlocked.has("normal"):
 		unlocked.append("normal")
 	arrow_slots = clampi(cfg.get_value("progress", "arrow_slots", START_SLOTS), START_SLOTS, max_slots())
@@ -516,4 +519,5 @@ func save_data() -> void:
 	cfg.set_value("ads", "free_coin_day", free_coin_day)
 	cfg.set_value("app", "sessions", sessions)
 	cfg.set_value("settings", "sound", sound_enabled)
+	cfg.set_value("settings", "language", language)
 	cfg.save(SAVE_PATH)

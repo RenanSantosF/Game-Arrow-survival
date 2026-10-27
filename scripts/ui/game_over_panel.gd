@@ -58,15 +58,15 @@ func _ready() -> void:
 		rec_tw.tween_property(rec, "scale", Vector2(1.12, 1.12), 0.45).set_trans(Tween.TRANS_SINE)
 		rec_tw.tween_property(rec, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_SINE)
 	else:
-		box.add_child(UiKit.make_label("Recorde: %d" % GameData.best_score, 32, UiKit.GOLD, 8))
+		box.add_child(UiKit.make_label(tr("Recorde: %d") % GameData.best_score, 32, UiKit.GOLD, 8))
 
-	box.add_child(UiKit.make_label("Onda %d  •  %s" % [wave, era_name], 30, Color(0.7, 0.9, 1.0), 7))
-	var stats := "Abates seguidos: %d   •   Na cabeça: %d\nTempo: %d:%02d" % [kills, headshots, int(seconds) / 60, int(seconds) % 60]
+	box.add_child(UiKit.make_label(tr("Onda %d  •  %s") % [wave, era_name], 30, Color(0.7, 0.9, 1.0), 7))
+	var stats := tr("Abates seguidos: %d   •   Na cabeça: %d\nTempo: %d:%02d") % [kills, headshots, int(seconds) / 60, int(seconds) % 60]
 	box.add_child(UiKit.make_label(stats, 24, Color(0.85, 0.9, 1.0), 6))
-	_coins_label = UiKit.make_label("+%d moedas  (total: %d)" % [coins, GameData.coins], 28, UiKit.GOLD, 7)
+	_coins_label = UiKit.make_label(tr("+%d moedas  (total: %d)") % [coins, GameData.coins], 28, UiKit.GOLD, 7)
 	box.add_child(_coins_label)
 	for def in new_arrows:
-		box.add_child(UiKit.make_label("Flecha desbloqueada: %s!" % def["name"], 26, Color(0.6, 1, 0.5), 6))
+		box.add_child(UiKit.make_label(tr("Flecha desbloqueada: %s!") % tr(def["name"]), 26, Color(0.6, 1, 0.5), 6))
 
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 8)
@@ -78,7 +78,7 @@ func _ready() -> void:
 		box.add_child(revive)
 		_pulse_forever(revive)
 	if can_double and coins > 0:
-		_double_button = UiKit.make_button("DOBRAR MOEDAS: +%d  (ver anúncio)" % coins, Color(0.85, 0.6, 0.1), 25, Vector2(460, 76))
+		_double_button = UiKit.make_button(tr("DOBRAR MOEDAS: +%d  (ver anúncio)") % coins, Color(0.85, 0.6, 0.1), 25, Vector2(460, 76))
 		_double_button.pressed.connect(func() -> void: double_pressed.emit())
 		box.add_child(_double_button)
 	var retry := UiKit.make_button("JOGAR DE NOVO", Color(0.2, 0.7, 0.3), 40, Vector2(460, 100))
@@ -102,7 +102,7 @@ func _ready() -> void:
 ## Depois de assistir o anúncio de dobrar: atualiza o texto e some com o botão.
 func show_doubled(total_coins: int) -> void:
 	coins = total_coins
-	_coins_label.text = "+%d moedas  (total: %d)" % [coins, GameData.coins]
+	_coins_label.text = tr("+%d moedas  (total: %d)") % [coins, GameData.coins]
 	_coins_label.add_theme_color_override("font_color", Color(1, 0.95, 0.5))
 	_coins_label.pivot_offset = _coins_label.size / 2.0
 	var tw := _coins_label.create_tween()

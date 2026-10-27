@@ -95,11 +95,11 @@ func _ready() -> void:
 	_score_label.pivot_offset = Vector2(120, 40)
 	_root.add_child(_score_label)
 
-	_kills_label = UiKit.make_label("Abates seguidos: 0", 24, Color(1, 0.9, 0.7), 6)
+	_kills_label = UiKit.make_label(tr("Abates seguidos: 0"), 24, Color(1, 0.9, 0.7), 6)
 	UiKit.anchor(_kills_label, Control.PRESET_CENTER_TOP, -200, 180, 200, 214)
 	_root.add_child(_kills_label)
 
-	_best_label = UiKit.make_label("Recorde: %d" % GameData.best_score, 22, Color(1, 1, 1, 0.85), 6)
+	_best_label = UiKit.make_label(tr("Recorde: %d") % GameData.best_score, 22, Color(1, 1, 1, 0.85), 6)
 	UiKit.anchor(_best_label, Control.PRESET_TOP_RIGHT, -330, 112, -20, 142)
 	_best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_root.add_child(_best_label)
@@ -201,28 +201,28 @@ func set_score(score: int, kills: int) -> void:
 	_kills = kills
 	_refresh_kills_label()
 	if score > GameData.best_score and GameData.best_score > 0:
-		_best_label.text = "NOVO RECORDE!"
+		_best_label.text = tr("NOVO RECORDE!")
 		_best_label.add_theme_color_override("font_color", UiKit.GOLD)
 	var next := _next_unlock(kills)
 	if next.is_empty():
 		_next_label.text = ""
 	else:
-		_next_label.text = "Próxima flecha: %s em %d abates" % [next["name"], int(next["unlock"]) - kills]
+		_next_label.text = tr("Próxima flecha: %s em %d abates") % [tr(next["name"]), int(next["unlock"]) - kills]
 
 
 func _refresh_kills_label() -> void:
 	if _wave_left > 0:
-		_kills_label.text = "Abates: %d   •   Restam: %d" % [_kills, _wave_left]
+		_kills_label.text = tr("Abates: %d   •   Restam: %d") % [_kills, _wave_left]
 	else:
-		_kills_label.text = "Abates seguidos: %d" % _kills
+		_kills_label.text = tr("Abates seguidos: %d") % _kills
 
 
 func set_coins(run_coins: int) -> void:
-	_coins_label.text = "Moedas: +%d" % run_coins
+	_coins_label.text = tr("Moedas: +%d") % run_coins
 
 
 func set_wave(wave: int, era_name: String, left: int, total: int) -> void:
-	_wave_label.text = "ONDA %d" % wave if wave > 0 else ""
+	_wave_label.text = tr("ONDA %d") % wave if wave > 0 else ""
 	_era_label.text = era_name if wave > 0 else ""
 	_wave_left = left
 	_wave_total = total

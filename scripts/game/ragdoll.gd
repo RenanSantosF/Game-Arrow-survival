@@ -166,7 +166,7 @@ func _sever(part: String, impulse: Vector2) -> void:
 	if part == "waist":
 		# As pernas caem, a parte de cima é lançada para trás.
 		_prev[P_NECK] -= impulse.normalized() * 200.0 * dt + Vector2(0, -260) * dt
-		Fx.text(_pos[a] + Vector2(0, -40), "PARTIDO!", Color(1, 0.55, 0.4), 34, 0.9)
+		Fx.text(_pos[a] + Vector2(0, -40), tr("PARTIDO!"), Color(1, 0.55, 0.4), 34, 0.9)
 	_bleeding.append([a, b])
 	Fx.blood(_pos[a], Vector2.UP, 2.2)
 	Sfx.play("headshot", -2.0, 0.2)

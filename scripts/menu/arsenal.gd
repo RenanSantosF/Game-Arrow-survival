@@ -488,7 +488,7 @@ func _make_upgrade_card(u: Dictionary) -> Control:
 	names.add_theme_constant_override("separation", 0)
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
 	top.add_child(names)
-	var title := UiKit.make_label(u["name"], 28, Color.WHITE, 6)
+	var title := UiKit.make_label(tr(u["name"]), 28, Color.WHITE, 6)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	names.add_child(title)
 	var pips := Pips.new((u["cost"] as Array).size(), color, 15)
@@ -511,8 +511,8 @@ func _make_upgrade_card(u: Dictionary) -> Control:
 
 ## Texto "agora » depois" de cada melhoria.
 func _upgrade_effect_text(id: String, lv: int, maxed: bool) -> String:
-	var label: String = {"hp": "Vida", "damage": "Dano", "stamina": "Estamina", "regen": "Recuperação",
-		"armor": "Dano sofrido", "bow": "Força"}[id]
+	var label: String = tr({"hp": "Vida", "damage": "Dano", "stamina": "Estamina", "regen": "Recuperação",
+		"armor": "Dano sofrido", "bow": "Força"}[id])
 	var now := _upgrade_value(id, lv)
 	if maxed:
 		return "%s: %s" % [label, now]
@@ -543,18 +543,18 @@ func _buy_upgrade(id: String, button: Button, card: Control) -> void:
 	if not GameData.upgrade_wave_ok(id):
 		Sfx.play("hurt", -8.0)
 		_shake(button)
-		_show_toast("Chegue à onda %d numa partida\npara liberar este nível" % GameData.upgrade_wave_needed(id), Color(0.6, 0.85, 1.0))
+		_show_toast(tr("Chegue à onda %d numa partida\npara liberar este nível") % GameData.upgrade_wave_needed(id), Color(0.6, 0.85, 1.0))
 		return
 	if GameData.coins < cost:
 		_not_enough(cost, button)
 		return
 	var old_rank := GameData.player_rank_name()
 	GameData.buy_upgrade(id)
-	_celebrate(button, card, "NÍVEL %d!" % GameData.upgrade_level(id), UPGRADE_LOOK[id])
+	_celebrate(button, card, tr("NÍVEL %d!") % GameData.upgrade_level(id), UPGRADE_LOOK[id])
 	PlayerArcher.apply_rank_look(_hero)
 	_hero.play_shot_recoil()
 	if GameData.player_rank_name() != old_rank:
-		_show_toast("NOVO TÍTULO: %s!" % GameData.player_rank_name().to_upper(), UiKit.GOLD)
+		_show_toast(tr("NOVO TÍTULO: %s!") % tr(GameData.player_rank_name()).to_upper(), UiKit.GOLD)
 		Sfx.play("record", -4.0)
 	_refresh()
 
@@ -654,7 +654,7 @@ func _make_arrow_card(def: Dictionary) -> Button:
 	icon.custom_minimum_size = Vector2(76, 76)
 	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(icon)
-	var title := UiKit.make_label(def["name"], 19, Color.WHITE, 5)
+	var title := UiKit.make_label(tr(def["name"]), 19, Color.WHITE, 5)
 	v.add_child(title)
 	var pips := Pips.new(GameData.ARROW_MAX_LEVEL, UiKit.GOLD, 11)
 	v.add_child(pips)
@@ -685,7 +685,7 @@ func _on_slot(index: int) -> void:
 		Sfx.play("click")
 		_refresh()
 	elif index < GameData.arrow_slots:
-		_show_toast("Toque numa flecha e em EQUIPAR", Color(0.8, 0.9, 1.0))
+		_show_toast(tr("Toque numa flecha e em EQUIPAR"), Color(0.8, 0.9, 1.0))
 	elif index == GameData.arrow_slots:
 		var cost := GameData.next_slot_cost()
 		if GameData.coins < cost:
@@ -695,7 +695,7 @@ func _on_slot(index: int) -> void:
 		_celebrate(_slots[index], _slots[index], "NOVO ESPAÇO!", Color(0.5, 0.85, 1.0))
 		_refresh()
 	else:
-		_show_toast("Compre os espaços em ordem", Color(0.8, 0.9, 1.0))
+		_show_toast(tr("Compre os espaços em ordem"), Color(0.8, 0.9, 1.0))
 
 
 func _on_equip() -> void:
@@ -705,7 +705,7 @@ func _on_equip() -> void:
 	if GameData.is_equipped(id):
 		GameData.unequip(id)
 		Sfx.play("click")
-		_show_toast("Removida da partida", Color(0.8, 0.9, 1.0))
+		_show_toast(tr("Removida da partida"), Color(0.8, 0.9, 1.0))
 	elif GameData.equip(id):
 		Sfx.play("unlock", -6.0)
 		var slot := _slots[GameData.loadout.size() - 1]
@@ -713,7 +713,7 @@ func _on_equip() -> void:
 	else:
 		Sfx.play("hurt", -10.0)
 		_shake(_equip_btn)
-		_show_toast("Espaços cheios! Remova uma flecha\nou compre outro espaço", Color(1, 0.75, 0.5))
+		_show_toast(tr("Espaços cheios! Remova uma flecha\nou compre outro espaço"), Color(1, 0.75, 0.5))
 	_refresh()
 
 
@@ -733,17 +733,17 @@ func _on_main_action() -> void:
 		if not GameData.arrow_xp_ok(id):
 			Sfx.play("hurt", -8.0)
 			_shake(_main_btn)
-			_show_toast("Use a %s nas partidas:\nacertos e abates dão experiência" % GameData.get_arrow(id)["name"], Color(0.6, 0.85, 1.0))
+			_show_toast(tr("Use a %s nas partidas:\nacertos e abates dão experiência") % tr(GameData.get_arrow(id)["name"]), Color(0.6, 0.85, 1.0))
 			return
 		if GameData.coins < cost:
 			_not_enough(cost, _main_btn)
 			return
 		GameData.buy_arrow_upgrade(id)
 		var master := GameData.is_master(id)
-		_celebrate(_main_btn, _arrow_cards[id]["button"], "MESTRE!" if master else "NÍVEL %d!" % GameData.arrow_level(id), UiKit.GOLD)
+		_celebrate(_main_btn, _arrow_cards[id]["button"], tr("MESTRE!") if master else tr("NÍVEL %d!") % GameData.arrow_level(id), UiKit.GOLD)
 		if master:
 			Sfx.play("record", -4.0)
-			_show_toast("%s virou MESTRE!\n+10%% de dano e brilho dourado" % GameData.get_arrow(id)["name"], UiKit.GOLD)
+			_show_toast(tr("%s virou MESTRE!\n+10%% de dano e brilho dourado") % tr(GameData.get_arrow(id)["name"]), UiKit.GOLD)
 	_refresh()
 
 
@@ -760,15 +760,17 @@ func _refresh_hero() -> void:
 	for i in RANKS.size():
 		if total >= int(RANKS[i][0]):
 			current = i
-	_rank_label.text = GameData.player_rank_name()
+	_rank_label.text = tr(GameData.player_rank_name())
 	if current + 1 < RANKS.size():
 		var lo: int = RANKS[current][0]
 		var hi: int = RANKS[current + 1][0]
 		_rank_bar.ratio = float(total - lo) / float(hi - lo)
-		_rank_next.text = "Mais %d melhoria%s para virar\n%s" % [hi - total, "s" if hi - total > 1 else "", RANKS[current + 1][1]]
+		var left := hi - total
+		var template := tr("Mais 1 melhoria para virar\n%s") if left == 1 else tr("Mais %d melhorias para virar\n%s")
+		_rank_next.text = template % ([tr(RANKS[current + 1][1])] if left == 1 else [left, tr(RANKS[current + 1][1])])
 	else:
 		_rank_bar.ratio = 1.0
-		_rank_next.text = "Título máximo!"
+		_rank_next.text = tr("Título máximo!")
 	for u in GameData.UPGRADES:
 		var id: String = u["id"]
 		var c: Dictionary = _upgrade_cards[id]
@@ -779,11 +781,11 @@ func _refresh_hero() -> void:
 		var buy: Button = c["buy"]
 		var price: PriceTag = c["price"]
 		if cost < 0:
-			price.show_text("MÁXIMO", false)
+			price.show_text(tr("MÁXIMO"), false)
 			_restyle(buy, Color(0.75, 0.55, 0.15))
 		else:
 			if not GameData.upgrade_wave_ok(id):
-				price.show_text("Chegue à onda %d" % GameData.upgrade_wave_needed(id), false)
+				price.show_text(tr("Chegue à onda %d") % GameData.upgrade_wave_needed(id), false)
 				_restyle(buy, Color(0.2, 0.3, 0.5))
 			else:
 				price.show_text(str(cost), true)
@@ -797,13 +799,13 @@ func _refresh_free_button() -> void:
 	var tag: PriceTag = _free_btn.get_meta("tag")
 	var left := GameData.free_coin_ads_left()
 	if left <= 0:
-		tag.show_text("Volte amanhã: mais moedas grátis", false)
+		tag.show_text(tr("Volte amanhã: mais moedas grátis"), false)
 		_restyle(_free_btn, GRAY)
 	elif not Ads.is_rewarded_ready():
-		tag.show_text("Carregando anúncio...", false)
+		tag.show_text(tr("Carregando anúncio..."), false)
 		_restyle(_free_btn, GRAY)
 	else:
-		tag.show_text("VER ANÚNCIO: +%d   (%d hoje)" % [GameData.FREE_COIN_REWARD, left], true)
+		tag.show_text(tr("VER ANÚNCIO: +%d   (%d hoje)") % [GameData.FREE_COIN_REWARD, left], true)
 		_restyle(_free_btn, Color(0.55, 0.3, 0.85))
 
 
@@ -814,13 +816,13 @@ func _on_free_coins() -> void:
 		return
 	Ads.show_rewarded(func() -> void:
 		GameData.claim_free_coins()
-		_celebrate(_free_btn, _coin_pill, "+%d MOEDAS!" % GameData.FREE_COIN_REWARD, UiKit.GOLD)
+		_celebrate(_free_btn, _coin_pill, tr("+%d MOEDAS!") % GameData.FREE_COIN_REWARD, UiKit.GOLD)
 		_refresh())
 
 
 func _refresh_arrows() -> void:
 	var loadout := GameData.loadout
-	_slot_title.text = "NA PARTIDA: %d de %d espaços" % [loadout.size(), GameData.arrow_slots]
+	_slot_title.text = tr("NA PARTIDA: %d de %d espaços") % [loadout.size(), GameData.arrow_slots]
 	for i in _slots.size():
 		_fill_slot(_slots[i], i, loadout)
 
@@ -864,11 +866,11 @@ func _fill_slot(b: Button, i: int, loadout: Array) -> void:
 		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		icon.selected = loadout[i] == _detail_id
 		v.add_child(icon)
-		v.add_child(UiKit.make_label(GameData.get_arrow(loadout[i])["name"], 16, Color.WHITE, 4))
+		v.add_child(UiKit.make_label(tr(GameData.get_arrow(loadout[i])["name"]), 16, Color.WHITE, 4))
 		_style_card_button(b, Color(0.16, 0.3, 0.22), Color(0.45, 0.95, 0.55), 3)
 	elif i < GameData.arrow_slots:
 		v.add_child(UiKit.make_label("+", 54, Color(1, 1, 1, 0.45), 4))
-		v.add_child(UiKit.make_label("vazio", 16, Color(1, 1, 1, 0.5), 4))
+		v.add_child(UiKit.make_label(tr("vazio"), 16, Color(1, 1, 1, 0.5), 4))
 		_style_card_button(b, Color(0.1, 0.12, 0.2), Color(1, 1, 1, 0.3), 2)
 	else:
 		var lock := ArrowIcon.new("normal")
@@ -880,10 +882,10 @@ func _fill_slot(b: Button, i: int, loadout: Array) -> void:
 			var tag := PriceTag.new(19)
 			tag.show_text(str(GameData.next_slot_cost()), true)
 			v.add_child(tag)
-			v.add_child(UiKit.make_label("novo espaço", 13, Color(0.8, 0.9, 1.0), 4))
+			v.add_child(UiKit.make_label(tr("novo espaço"), 13, Color(0.8, 0.9, 1.0), 4))
 			_style_card_button(b, Color(0.22, 0.17, 0.08), UiKit.GOLD, 3)
 		else:
-			v.add_child(UiKit.make_label("bloqueado", 14, Color(1, 1, 1, 0.4), 4))
+			v.add_child(UiKit.make_label(tr("bloqueado"), 14, Color(1, 1, 1, 0.4), 4))
 			_style_card_button(b, Color(0.08, 0.09, 0.14), Color(1, 1, 1, 0.12), 2)
 
 
@@ -895,68 +897,68 @@ func _refresh_detail() -> void:
 	_detail_icon.arrow_id = id
 	_detail_icon.locked = not unlocked
 	var master := GameData.is_master(id)
-	_detail_name.text = def["name"] + ("  MESTRE" if master else ("" if lv == 0 else "  +%d" % lv))
+	_detail_name.text = tr(def["name"]) + ("  " + tr("MESTRE") if master else ("" if lv == 0 else "  +%d" % lv))
 	_detail_name.add_theme_color_override("font_color", UiKit.GOLD if master else Color.WHITE)
 	var need := GameData.arrow_xp_needed(id)
 	var xp := GameData.get_arrow_xp(id)
 	_detail_xp_bar.visible = unlocked and need > 0
 	_detail_xp_label.visible = unlocked
 	if master:
-		_detail_xp_label.text = "Experiência completa!"
+		_detail_xp_label.text = tr("Experiência completa!")
 	elif need > 0:
 		_detail_xp_bar.ratio = float(xp) / need
 		var ready := xp >= need
 		_detail_xp_bar.fill = Color(0.4, 1.0, 0.5) if ready else Color(0.35, 0.85, 1.0)
-		_detail_xp_label.text = "Experiência %d/%d%s" % [xp, need, "  PRONTA!" if ready else " (use nas partidas)"]
+		_detail_xp_label.text = (tr("Experiência %d/%d  PRONTA!") if ready else tr("Experiência %d/%d (use nas partidas)")) % [xp, need]
 		_detail_xp_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.6) if ready else Color(0.6, 0.9, 1.0))
 	_detail_pips.set_value(lv, GameData.ARROW_MAX_LEVEL)
 	_detail_pips.visible = unlocked
-	_detail_desc.text = String(def["desc"]).replace("\n", " ")
+	_detail_desc.text = tr(def["desc"]).replace("\n", " ")
 
 	var dmg := GameData.arrow_damage(def)
 	var st := GameData.arrow_stamina(def)
 	if not unlocked:
-		_detail_stats.text = "Dano %d   •   Estamina %d\nou libere com %d abates seguidos" % [int(dmg), int(round(st)), def["unlock"]]
+		_detail_stats.text = tr("Dano %d   •   Estamina %d\nou libere com %d abates seguidos") % [int(dmg), int(round(st)), def["unlock"]]
 		_detail_stats.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5))
 	elif lv >= GameData.ARROW_MAX_LEVEL:
-		_detail_stats.text = "Dano %d   •   Estamina %d\nMESTRE: +10%% de dano extra e brilho dourado!" % [int(dmg), int(round(st))]
+		_detail_stats.text = tr("Dano %d   •   Estamina %d\nMESTRE: +10%% de dano extra e brilho dourado!") % [int(dmg), int(round(st))]
 		_detail_stats.add_theme_color_override("font_color", UiKit.GOLD)
 	else:
 		var next_master := GameData.MASTER_BONUS if lv + 1 >= GameData.ARROW_MAX_LEVEL else 0.0
 		var next_dmg := float(def["damage"]) * (1.0 + 0.12 * (lv + 1) + next_master)
 		var next_st := float(def["stamina"]) * (1.0 - 0.06 * (lv + 1))
-		_detail_stats.text = "Dano %d » %d   •   Estamina %d » %d\nEfeito especial +15%% mais forte" % [int(dmg), int(next_dmg), int(round(st)), int(round(next_st))]
+		_detail_stats.text = tr("Dano %d » %d   •   Estamina %d » %d\nEfeito especial +15%% mais forte") % [int(dmg), int(next_dmg), int(round(st)), int(round(next_st))]
 		_detail_stats.add_theme_color_override("font_color", Color(0.7, 1.0, 0.7))
 
 	# Botão da esquerda: equipar / remover.
 	if not unlocked:
-		_equip_btn.text = "BLOQUEADA"
+		_equip_btn.text = tr("BLOQUEADA")
 		_restyle(_equip_btn, Color(0.25, 0.27, 0.35))
 	elif id == "normal":
-		_equip_btn.text = "SEMPRE LEVA"
+		_equip_btn.text = tr("SEMPRE LEVA")
 		_restyle(_equip_btn, Color(0.25, 0.27, 0.35))
 	elif GameData.is_equipped(id):
-		_equip_btn.text = "REMOVER"
+		_equip_btn.text = tr("REMOVER")
 		_restyle(_equip_btn, Color(0.75, 0.3, 0.3))
 	else:
-		_equip_btn.text = "EQUIPAR"
+		_equip_btn.text = tr("EQUIPAR")
 		_restyle(_equip_btn, Color(0.25, 0.5, 0.9))
 
 	# Botão da direita: comprar / melhorar.
 	if not unlocked:
 		var price := GameData.arrow_unlock_cost(id)
-		_main_price.show_text("COMPRAR  %d" % price, true)
+		_main_price.show_text(tr("COMPRAR  %d") % price, true)
 		_restyle(_main_btn, GREEN if GameData.coins >= price else GRAY)
 	else:
 		var cost := GameData.arrow_upgrade_cost(id)
 		if cost < 0:
-			_main_price.show_text("MÁXIMO", false)
+			_main_price.show_text(tr("MÁXIMO"), false)
 			_restyle(_main_btn, Color(0.75, 0.55, 0.15))
 		elif not GameData.arrow_xp_ok(id):
-			_main_price.show_text("USE MAIS  (%d XP)" % (need - xp), false)
+			_main_price.show_text(tr("USE MAIS  (%d XP)") % (need - xp), false)
 			_restyle(_main_btn, Color(0.2, 0.3, 0.5))
 		else:
-			_main_price.show_text("MELHORAR  %d" % cost, true)
+			_main_price.show_text(tr("MELHORAR  %d") % cost, true)
 			_restyle(_main_btn, GREEN if GameData.coins >= cost else GRAY)
 
 
@@ -1008,7 +1010,7 @@ func _not_enough(cost: int, button: Control) -> void:
 	var pill_tw := _coin_pill.create_tween()
 	_coin_pill.modulate = Color(1, 0.45, 0.45)
 	pill_tw.tween_property(_coin_pill, "modulate", Color.WHITE, 0.5)
-	_show_toast("Faltam %d moedas!" % (cost - GameData.coins), Color(1, 0.6, 0.5))
+	_show_toast(tr("Faltam %d moedas!") % (cost - GameData.coins), Color(1, 0.6, 0.5))
 
 
 func _show_toast(text: String, color: Color) -> void:
@@ -1035,11 +1037,13 @@ func _pulse(c: Control, amount: float) -> void:
 	tw.tween_property(c, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
+## Balança o controle (gira de leve). Não mexe na posição: dentro de containers,
+## mexer na posição antes do layout deixava o botão por cima de outro.
 func _shake(c: Control) -> void:
-	var x := c.position.x
+	c.pivot_offset = c.size / 2.0
 	var tw := c.create_tween()
-	for d in [12.0, -10.0, 7.0, -4.0, 0.0]:
-		tw.tween_property(c, "position:x", x + d, 0.04)
+	for d in [0.06, -0.05, 0.035, -0.02, 0.0]:
+		tw.tween_property(c, "rotation", d, 0.05)
 
 
 # --- Estilos -------------------------------------------------------------------------------
