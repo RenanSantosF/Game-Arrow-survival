@@ -17,7 +17,7 @@ as capturas ficam em `pt-BR/`, `en-US/` e `es-419/`.
 | Gratuito ou pago | Gratuito |
 | Categoria | Ação |
 | Nome do pacote | `com.renansantos.arrowsurvival` (não pode mudar depois de publicar) |
-| Política de privacidade | `https://github.com/RenanSantosF/Game-Arrow-survival/blob/main/docs/PRIVACIDADE.md` |
+| Política de privacidade | `https://renansantosf.github.io/Game-Arrow-survival/privacidade.html` |
 
 ### Descrição curta (até 80 caracteres)
 ```
