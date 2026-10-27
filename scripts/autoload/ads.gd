@@ -5,13 +5,13 @@ extends Node
 ##   (a primeira vez que o jogo é aberto depois de instalado).
 ## - Intersticial só entre partidas (ao tocar em "Jogar de novo" ou "Menu"),
 ##   no máximo a cada INTERSTITIAL_EVERY partidas e com intervalo mínimo de tempo.
-## - Anúncio premiado é sempre opcional: o jogador escolhe assistir para continuar.
+## - Anúncio premiado é sempre opcional: o jogador escolhe assistir para ganhar algo
+##   (continuar de onde parou, dobrar as moedas da partida, moedas grátis no Arsenal).
 ## - Sem banners durante o jogo.
 ##
 ## Os IDs abaixo são os IDs DE TESTE oficiais do Google. Antes de publicar,
 ## troque pelos IDs da sua conta AdMob (veja o README).
 
-signal rewarded_earned
 signal ad_closed
 
 const INTERSTITIAL_ID := "ca-app-pub-3940256099942544/1033173712"
@@ -27,6 +27,7 @@ var _rewarded: RewardedAd = null
 var _games_since_ad := 0
 var _last_ad_time := -1000.0
 var _reward_pending := false
+var _on_reward := Callable()
 
 
 func _ready() -> void:
@@ -42,6 +43,11 @@ func _ready() -> void:
 func _load_all() -> void:
 	_load_interstitial()
 	_load_rewarded()
+
+
+## Anúncios só existem no celular (Android com o plugin AdMob).
+func is_available() -> bool:
+	return _enabled
 
 
 func is_rewarded_ready() -> bool:
@@ -85,11 +91,12 @@ func maybe_show_interstitial(done: Callable) -> void:
 	ad.show()
 
 
-## Mostra o anúncio premiado. Emite "rewarded_earned" se o jogador assistir até o fim.
-func show_rewarded() -> void:
+## Mostra o anúncio premiado. Chama "on_reward" se o jogador assistir até o fim.
+func show_rewarded(on_reward: Callable) -> void:
 	if not is_rewarded_ready():
 		return
 	_reward_pending = false
+	_on_reward = on_reward
 	_last_ad_time = Time.get_ticks_msec() / 1000.0
 	_games_since_ad = 0
 	var ad := _rewarded
@@ -98,12 +105,14 @@ func show_rewarded() -> void:
 	callback.on_ad_dismissed_full_screen_content = func() -> void:
 		ad.destroy()
 		_after_ad()
-		if _reward_pending:
-			rewarded_earned.emit()
+		if _reward_pending and _on_reward.is_valid():
+			_on_reward.call()
+		_on_reward = Callable()
 		ad_closed.emit()
 	callback.on_ad_failed_to_show_full_screen_content = func(_error: AdError) -> void:
 		ad.destroy()
 		_after_ad()
+		_on_reward = Callable()
 		ad_closed.emit()
 	ad.full_screen_content_callback = callback
 	var listener := OnUserEarnedRewardListener.new()

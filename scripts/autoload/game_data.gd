@@ -98,6 +98,17 @@ const ARROWS := [
 	},
 ]
 
+## Experiência necessária para CADA nível da flecha (além das moedas).
+## Acerto = 1, na cabeça/barriga = 3, abate = +2.
+const ARROW_XP_LEVELS := [12, 30, 60, 100, 160]
+## Nível máximo: a flecha vira MESTRE e ganha +10% de dano extra.
+const MASTER_BONUS := 0.1
+## Melhorias do arqueiro exigem também chegar a certas ondas (por nível).
+const UPGRADE_WAVE_REQ := [0, 3, 6, 10, 15, 20]
+## Moedas grátis por anúncio premiado no Arsenal (até FREE_COIN_ADS_PER_DAY por dia).
+const FREE_COIN_REWARD := 40
+const FREE_COIN_ADS_PER_DAY := 3
+
 ## Espaços de flecha: começa com 2; o preço de cada espaço extra (3º, 4º e 5º) é alto.
 const START_SLOTS := 2
 const SLOT_COSTS := [400, 1000, 2200]
@@ -130,6 +141,11 @@ var coins := 0
 var upgrades := {}
 ## Nível de melhoria de cada flecha (0 = sem melhoria).
 var arrow_levels := {}
+## Experiência de cada flecha: ganha usando (acertos e abates com ela).
+var arrow_xp := {}
+## Anúncios premiados de "moedas grátis" vistos hoje (limite diário).
+var free_coin_ads := 0
+var free_coin_day := ""
 
 
 func _ready() -> void:
@@ -159,9 +175,19 @@ func upgrade_cost(id: String) -> int:
 	return -1 if lv >= costs.size() else int(costs[lv])
 
 
+## Onda que precisa ter alcançado para comprar o próximo nível (0 = sem exigência).
+func upgrade_wave_needed(id: String) -> int:
+	var lv := upgrade_level(id)
+	return int(UPGRADE_WAVE_REQ[mini(lv, UPGRADE_WAVE_REQ.size() - 1)])
+
+
+func upgrade_wave_ok(id: String) -> bool:
+	return best_wave >= upgrade_wave_needed(id)
+
+
 func buy_upgrade(id: String) -> bool:
 	var cost := upgrade_cost(id)
-	if cost < 0 or coins < cost:
+	if cost < 0 or coins < cost or not upgrade_wave_ok(id):
 		return false
 	coins -= cost
 	upgrades[id] = upgrade_level(id) + 1
@@ -236,14 +262,60 @@ func arrow_upgrade_cost(id: String) -> int:
 	return base * (lv + 1)
 
 
+func get_arrow_xp(id: String) -> int:
+	return int(arrow_xp.get(id, 0))
+
+
+## Experiência necessária para o próximo nível (-1 se já é mestre).
+func arrow_xp_needed(id: String) -> int:
+	var lv := arrow_level(id)
+	return -1 if lv >= ARROW_MAX_LEVEL else int(ARROW_XP_LEVELS[lv])
+
+
+func arrow_xp_ok(id: String) -> bool:
+	var need := arrow_xp_needed(id)
+	return need >= 0 and get_arrow_xp(id) >= need
+
+
+func is_master(id: String) -> bool:
+	return arrow_level(id) >= ARROW_MAX_LEVEL
+
+
+## Soma experiência à flecha. Retorna true se ela acabou de ficar pronta para melhorar.
+func add_arrow_xp(id: String, amount: int) -> bool:
+	var need := arrow_xp_needed(id)
+	var before := get_arrow_xp(id)
+	if need < 0:
+		return false
+	arrow_xp[id] = mini(before + amount, need)
+	return before < need and int(arrow_xp[id]) >= need
+
+
 func buy_arrow_upgrade(id: String) -> bool:
 	var cost := arrow_upgrade_cost(id)
-	if not is_unlocked(id) or cost < 0 or coins < cost:
+	if not is_unlocked(id) or cost < 0 or coins < cost or not arrow_xp_ok(id):
 		return false
 	coins -= cost
 	arrow_levels[id] = arrow_level(id) + 1
+	# A experiência recomeça para o próximo nível.
+	arrow_xp[id] = 0
 	save_data()
 	return true
+
+
+## Pode ganhar moedas grátis com anúncio hoje?
+func free_coin_ads_left() -> int:
+	var today := Time.get_date_string_from_system()
+	if free_coin_day != today:
+		free_coin_day = today
+		free_coin_ads = 0
+	return FREE_COIN_ADS_PER_DAY - free_coin_ads
+
+
+func claim_free_coins() -> void:
+	free_coin_ads_left()
+	free_coin_ads += 1
+	add_coins(FREE_COIN_REWARD)
 
 
 ## Preço para comprar uma flecha ainda bloqueada (sem precisar dos abates seguidos).
@@ -313,7 +385,8 @@ func unequip(id: String) -> void:
 
 ## Dano da flecha com a melhoria (+12% por nível).
 func arrow_damage(def: Dictionary) -> float:
-	return float(def["damage"]) * (1.0 + 0.12 * arrow_level(def["id"]))
+	var master := MASTER_BONUS if is_master(def["id"]) else 0.0
+	return float(def["damage"]) * (1.0 + 0.12 * arrow_level(def["id"]) + master)
 
 
 ## Estamina da flecha com a melhoria (-6% por nível).
@@ -402,6 +475,9 @@ func load_data() -> void:
 	coins = cfg.get_value("progress", "coins", 0)
 	upgrades = cfg.get_value("progress", "upgrades", {})
 	arrow_levels = cfg.get_value("progress", "arrow_levels", {})
+	arrow_xp = cfg.get_value("progress", "arrow_xp", {})
+	free_coin_ads = cfg.get_value("ads", "free_coin_ads", 0)
+	free_coin_day = cfg.get_value("ads", "free_coin_day", "")
 	sessions = cfg.get_value("app", "sessions", 0)
 	sound_enabled = cfg.get_value("settings", "sound", true)
 	if not unlocked.has("normal"):
@@ -435,6 +511,9 @@ func save_data() -> void:
 	cfg.set_value("progress", "coins", coins)
 	cfg.set_value("progress", "upgrades", upgrades)
 	cfg.set_value("progress", "arrow_levels", arrow_levels)
+	cfg.set_value("progress", "arrow_xp", arrow_xp)
+	cfg.set_value("ads", "free_coin_ads", free_coin_ads)
+	cfg.set_value("ads", "free_coin_day", free_coin_day)
 	cfg.set_value("app", "sessions", sessions)
 	cfg.set_value("settings", "sound", sound_enabled)
 	cfg.save(SAVE_PATH)

@@ -37,6 +37,7 @@ var _trail_timer := 0.0
 var _burn_left := 0.0
 ## Quantos inimigos a flecha perfurante ainda pode atravessar.
 var _pierce_left := 0
+var _master := false
 
 
 func launch(start: Vector2, initial_velocity: Vector2, arrow_def: Dictionary, arrow_damage: float, is_player: bool) -> void:
@@ -44,6 +45,7 @@ func launch(start: Vector2, initial_velocity: Vector2, arrow_def: Dictionary, ar
 	damage = arrow_damage
 	from_player = is_player
 	collision_mask = PLAYER_MASK if is_player else ENEMY_MASK
+	_master = is_player and GameData.is_master(def["id"])
 	_pierce_left = 0
 	if def["id"] == "pierce":
 		_pierce_left = 3 if GameData.arrow_level("pierce") >= 3 else 2
@@ -144,13 +146,17 @@ func _steer(delta: float) -> void:
 
 func _emit_trail(delta: float) -> void:
 	var trail: Color = def["trail"]
-	if trail.a <= 0.0:
+	if trail.a <= 0.0 and not _master:
 		return
 	_trail_timer -= delta
 	if _trail_timer > 0.0:
 		return
 	_trail_timer = 0.03
 	var back := global_position - velocity.normalized() * 30.0
+	if _master:
+		Fx.burst(back, -velocity, 1, Color(1, 0.85, 0.3, 0.9), 60.0, 0.6, 2.5, 0.0, 0.3, Fx.Kind.SPARK)
+		if trail.a <= 0.0:
+			return
 	match def["id"]:
 		"fire":
 			Fx.burst(back, Vector2.UP, 1, trail, 40.0, 0.6, 7.0, -120.0, 0.35, Fx.Kind.SMOKE)
@@ -207,4 +213,8 @@ func _process_stuck(delta: float) -> void:
 
 
 func _draw() -> void:
+	if from_player and _master:
+		# Flecha MESTRE (nível máximo): brilho dourado.
+		draw_circle(Vector2(-4, 0), 11.0, Color(1, 0.85, 0.3, 0.35))
+		draw_line(Vector2(-ArrowDraw.LENGTH, 0), Vector2(0, 0), Color(1, 0.85, 0.3, 0.5), 7.0, true)
 	ArrowDraw.draw_arrow(self, def)

@@ -6,7 +6,7 @@ extends Stickman
 
 signal shoot_requested(spawn_position: Vector2, velocity: Vector2, def: Dictionary)
 
-const STAMINA_REGEN := 16.0
+const STAMINA_REGEN := 14.0
 const HOLD_DRAIN := 3.0
 ## Fração do custo da flecha gasta num tiro com o arco quase solto.
 const MIN_COST_RATIO := 0.4

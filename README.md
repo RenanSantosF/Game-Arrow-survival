@@ -82,6 +82,14 @@ nova **era**: inimigos com novas cores, acessórios e proteções, e o céu muda
 Uma tela só, com duas abas: **ARQUEIRO** (melhorias do personagem) e **FLECHAS**
 (equipar, melhorar e comprar flechas). Toda compra mostra o que muda (“190 » 210”).
 
+Melhorar **não é só pagar**:
+- **Flechas** precisam de **experiência**, que só se ganha usando a flecha nas partidas
+  (acerto = 1, cabeça/barriga = 3, abate = +2). Por nível: 12, 30, 60, 100 e 160 XP.
+  No nível máximo a flecha vira **MESTRE**: +10% de dano extra, brilho e rastro dourados
+  e coroa no ícone.
+- **Melhorias do arqueiro** exigem ter chegado a certas ondas: nível 2 = onda 3,
+  nível 3 = onda 6, nível 4 = onda 10, nível 5 = onda 15, nível 6 = onda 20.
+
 #### Melhorias do arqueiro
 Moedas: 1+ por abate, +1 na cabeça, mini-chefe 5+, chefe 20+, bônus por onda vencida.
 O visual do arqueiro evolui com as melhorias: Aprendiz (bandana) → Caçador (capuz) →
@@ -137,8 +145,11 @@ Regras para não incomodar (`scripts/autoload/ads.gd`):
 - **Intersticial** só entre partidas (ao tocar em "Jogar de novo" ou "Menu"), no máximo
   **a cada 3 partidas** e com pelo menos **150 s** entre um e outro. Partidas com menos
   de 25 s não contam.
-- **Premiado (opcional):** na tela de derrota, "Continuar (ver anúncio)" revive o
-  jogador uma vez por partida, com 60% da vida, mantendo a sequência de abates.
+- **Premiados (sempre opcionais):**
+  - tela de derrota → **Continuar de onde parou** (uma vez por partida, 60% da vida,
+    mesma onda e sequência de abates);
+  - tela de derrota → **Dobrar moedas** da partida (uma vez por partida);
+  - Arsenal → **+40 moedas grátis** (até 3 por dia).
 - **Sem banners.**
 
 > Por enquanto são usados os **IDs de TESTE** do Google (aparece "Test Ad").

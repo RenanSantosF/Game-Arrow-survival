@@ -115,6 +115,7 @@ var kills := 0
 var headshots := 0
 var elapsed := 0.0
 var revived := false
+var coins_doubled := false
 var wave := 0
 var run_coins := 0
 
@@ -178,7 +179,6 @@ func _ready() -> void:
 	_spawn_player(false)
 	_hud.set_score(0, 0)
 	_hud.set_coins(0)
-	Ads.rewarded_earned.connect(_on_rewarded_earned)
 
 
 func _exit_tree() -> void:
@@ -233,6 +233,8 @@ func _on_player_shoot(spawn: Vector2, velocity: Vector2, def: Dictionary) -> voi
 func on_player_arrow_hit(target: Stickman, arrow: Arrow, zone: String, dmg: float, point: Vector2) -> void:
 	if not is_instance_valid(player) or not player.alive:
 		return
+	# Usar a flecha dá experiência a ela (necessária para melhorá-la).
+	_give_arrow_xp(arrow.def["id"], 3 if zone == "head" or zone == "belly" else 1)
 	# Acertar recupera estamina; na cabeça recupera bem mais.
 	var gain: float = HIT_STAMINA.get(zone, 0.0)
 	if gain > 0.0:
@@ -251,6 +253,12 @@ func on_player_arrow_hit(target: Stickman, arrow: Arrow, zone: String, dmg: floa
 				Fx.burst(point, (player.get_chest_global() - point).normalized(), 8, Color(0.9, 0.1, 0.25), 420.0, 0.3, 4.0, 0.0, 0.6)
 		"lightning":
 			_chain_lightning(target, point, arrow.damage * 0.6 * effect, 3 if GameData.arrow_level("lightning") >= 3 else 2)
+
+
+func _give_arrow_xp(id: String, amount: int) -> void:
+	if GameData.add_arrow_xp(id, amount):
+		_hud.show_banner("%s PRONTA PARA MELHORAR!" % GameData.get_arrow(id)["name"].to_upper(), Color(0.55, 0.9, 1.0), 1.8)
+		Sfx.play("unlock", -8.0)
 
 
 ## O raio salta do alvo para inimigos próximos (2, ou 3 com a flecha melhorada).
@@ -272,6 +280,7 @@ func _chain_lightning(source: Stickman, point: Vector2, dmg: float, jumps: int) 
 		var to := best.get_chest_global()
 		Fx.bolt(from, to)
 		hit.append(best)
+		best.last_hit_arrow = "lightning"
 		best.take_damage(dmg, "torso", (to - from).normalized() * 500.0, to)
 		from = to
 
@@ -338,6 +347,7 @@ func explode(point: Vector2, arrow: Arrow, collider: Object) -> void:
 			dmg += 45.0 * (1.0 - d / (radius + 40.0) * 0.6)
 		if dmg <= 0.0:
 			continue
+		e.last_hit_arrow = arrow.def["id"]
 		var impulse := (e.get_chest_global() - point).normalized() * 1100.0 + Vector2(0, -300)
 		Fx.blood(e.get_chest_global(), impulse.normalized(), 1.2)
 		if e.hp - dmg <= 0.0:
@@ -622,6 +632,8 @@ func _find_enemy_spot(size: float, fixed := Vector2.INF) -> Vector2:
 func _on_enemy_died(s: Stickman, zone: String) -> void:
 	var e := s as EnemyArcher
 	enemies.erase(e)
+	if e.last_hit_arrow != "":
+		_give_arrow_xp(e.last_hit_arrow, 2)
 	if is_instance_valid(e.platform):
 		var platform := e.platform as FloatingPlatform
 		_dead_spots.append([enemy_box(platform.base_position, e.scale.x * platform.size), DEAD_SPOT_TIME])
@@ -810,10 +822,13 @@ func _show_game_over() -> void:
 	panel.seconds = elapsed
 	panel.is_record = is_record
 	panel.can_revive = not revived and Ads.is_rewarded_ready()
+	panel.can_double = not coins_doubled and Ads.is_rewarded_ready()
 	panel.new_arrows = _new_arrows
 	_overlay.add_child(panel)
 	Sfx.play("gameover")
-	panel.revive_pressed.connect(func() -> void: Ads.show_rewarded())
+	panel.revive_pressed.connect(func() -> void: Ads.show_rewarded(_revive))
+	panel.double_pressed.connect(func() -> void:
+		Ads.show_rewarded(func() -> void: _double_coins(panel)))
 	panel.upgrades_pressed.connect(func() -> void: _overlay.add_child(Arsenal.new()))
 	panel.retry_pressed.connect(func() -> void:
 		Ads.maybe_show_interstitial(func() -> void: UiKit.fade_to_scene(self, "res://scenes/game.tscn")))
@@ -821,7 +836,19 @@ func _show_game_over() -> void:
 		Ads.maybe_show_interstitial(func() -> void: UiKit.fade_to_scene(self, "res://scenes/menu.tscn")))
 
 
-func _on_rewarded_earned() -> void:
+## Recompensa do anúncio: dobra as moedas ganhas na partida (uma vez por partida).
+func _double_coins(panel: GameOverPanel) -> void:
+	if coins_doubled:
+		return
+	coins_doubled = true
+	run_coins *= 2
+	_finish_run()
+	if is_instance_valid(panel):
+		panel.show_doubled(run_coins)
+
+
+## Recompensa do anúncio: volta à partida de onde parou (uma vez por partida).
+func _revive() -> void:
 	if state != State.OVER or revived:
 		return
 	revived = true

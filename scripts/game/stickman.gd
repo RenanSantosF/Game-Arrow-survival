@@ -97,6 +97,8 @@ var _shield_hit := 0.0
 ## Força do último impacto (0 = fraco, >1 = muito forte); define a chance de partir o corpo.
 var _last_hit_power := 0.0
 var _limb_damage := {"arm": 0.0, "leg": 0.0}
+## Última flecha que feriu este personagem (para dar experiência a ela no abate).
+var last_hit_arrow := ""
 
 
 func _ready() -> void:
@@ -210,6 +212,8 @@ func receive_arrow(arrow: Arrow, zone: String, point: Vector2, arrow_velocity: V
 		_lean_velocity += clampf(arrow_velocity.x * 0.0015, -2.0, 2.0)
 		return
 	var dmg := arrow.damage * zone_multiplier(zone)
+	if arrow.from_player:
+		last_hit_arrow = arrow.def["id"]
 	_last_hit_power = clampf(arrow_velocity.length() / 1300.0, 0.0, 1.2)
 	if arrow.def["id"] == "heavy":
 		_last_hit_power += 0.8

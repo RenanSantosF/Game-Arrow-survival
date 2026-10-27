@@ -9,6 +9,9 @@ extends Control
 ##   flecha tocada com os botões EQUIPAR / MELHORAR / COMPRAR.
 ## Toda compra tem brilho, som e o contador de moedas animado; quando falta
 ## dinheiro, a tela diz quanto falta.
+## Melhorar não é só pagar: cada flecha precisa de EXPERIÊNCIA (ganha usando-a
+## nas partidas) e o arqueiro precisa ter alcançado certas ondas. No nível
+## máximo a flecha vira MESTRE.
 
 signal closed
 
@@ -62,6 +65,10 @@ var _detail_name: Label
 var _detail_pips: Pips
 var _detail_desc: Label
 var _detail_stats: Label
+var _detail_xp_bar: RankBar
+var _detail_xp_label: Label
+var _free_btn: Button
+var _ad_check := 0.0
 var _equip_btn: Button
 var _main_btn: Button
 var _main_price: PriceTag
@@ -234,6 +241,7 @@ class RankBar:
 	extends Control
 	var ratio := 0.0
 	var shown := 0.0
+	var fill := Color(0.45, 0.8, 1.0)
 
 	func _process(delta: float) -> void:
 		shown = move_toward(shown, ratio, delta * 1.5)
@@ -242,7 +250,7 @@ class RankBar:
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
 		draw_rect(r, Color(0, 0, 0, 0.4))
-		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x * shown, size.y)), Color(0.45, 0.8, 1.0))
+		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x * shown, size.y)), fill)
 		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x * shown, size.y * 0.4)), Color(1, 1, 1, 0.25))
 		draw_rect(r, Color(1, 1, 1, 0.35), false, 2.0)
 
@@ -451,6 +459,16 @@ func _build_hero_page() -> Control:
 	v.add_child(grid)
 	for u in GameData.UPGRADES:
 		grid.add_child(_make_upgrade_card(u))
+
+	# Moedas grátis assistindo anúncio (só aparece no celular, com limite por dia).
+	_free_btn = UiKit.make_button("", Color(0.55, 0.3, 0.85), 26, Vector2(0, 80))
+	var tag := PriceTag.new(26)
+	tag.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_free_btn.add_child(tag)
+	_free_btn.set_meta("tag", tag)
+	_free_btn.pressed.connect(_on_free_coins)
+	_free_btn.visible = Ads.is_available()
+	v.add_child(_free_btn)
 	return v
 
 
@@ -522,6 +540,11 @@ func _buy_upgrade(id: String, button: Button, card: Control) -> void:
 	var cost := GameData.upgrade_cost(id)
 	if cost < 0:
 		return
+	if not GameData.upgrade_wave_ok(id):
+		Sfx.play("hurt", -8.0)
+		_shake(button)
+		_show_toast("Chegue à onda %d numa partida\npara liberar este nível" % GameData.upgrade_wave_needed(id), Color(0.6, 0.85, 1.0))
+		return
 	if GameData.coins < cost:
 		_not_enough(cost, button)
 		return
@@ -590,6 +613,12 @@ func _build_arrows_page() -> Control:
 	_detail_desc = UiKit.make_label("", 19, Color(0.85, 0.9, 1.0), 5)
 	_detail_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	info.add_child(_detail_desc)
+	_detail_xp_label = UiKit.make_label("", 18, Color(0.6, 0.9, 1.0), 5)
+	_detail_xp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	info.add_child(_detail_xp_label)
+	_detail_xp_bar = RankBar.new()
+	_detail_xp_bar.custom_minimum_size = Vector2(0, 14)
+	info.add_child(_detail_xp_bar)
 	_detail_stats = UiKit.make_label("", 20, Color(0.7, 1.0, 0.7), 5)
 	sv.add_child(_detail_stats)
 	var buttons := HBoxContainer.new()
@@ -629,6 +658,13 @@ func _make_arrow_card(def: Dictionary) -> Button:
 	v.add_child(title)
 	var pips := Pips.new(GameData.ARROW_MAX_LEVEL, UiKit.GOLD, 11)
 	v.add_child(pips)
+	# Barrinha de experiência (encher usando a flecha).
+	var xp := RankBar.new()
+	xp.fill = Color(0.35, 0.85, 1.0)
+	xp.custom_minimum_size = Vector2(110, 6)
+	xp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	xp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(xp)
 	# Selo no canto: equipada (vai para a partida).
 	var badge := CheckBadge.new()
 	badge.position = Vector2(126, 6)
@@ -638,7 +674,7 @@ func _make_arrow_card(def: Dictionary) -> Button:
 		Sfx.play("click")
 		_pulse(b, 1.06)
 		_refresh())
-	_arrow_cards[id] = {"button": b, "icon": icon, "title": title, "pips": pips, "badge": badge}
+	_arrow_cards[id] = {"button": b, "icon": icon, "title": title, "pips": pips, "badge": badge, "xp": xp}
 	return b
 
 
@@ -694,11 +730,20 @@ func _on_main_action() -> void:
 		var cost := GameData.arrow_upgrade_cost(id)
 		if cost < 0:
 			return
+		if not GameData.arrow_xp_ok(id):
+			Sfx.play("hurt", -8.0)
+			_shake(_main_btn)
+			_show_toast("Use a %s nas partidas:\nacertos e abates dão experiência" % GameData.get_arrow(id)["name"], Color(0.6, 0.85, 1.0))
+			return
 		if GameData.coins < cost:
 			_not_enough(cost, _main_btn)
 			return
 		GameData.buy_arrow_upgrade(id)
-		_celebrate(_main_btn, _arrow_cards[id]["button"], "NÍVEL %d!" % GameData.arrow_level(id), UiKit.GOLD)
+		var master := GameData.is_master(id)
+		_celebrate(_main_btn, _arrow_cards[id]["button"], "MESTRE!" if master else "NÍVEL %d!" % GameData.arrow_level(id), UiKit.GOLD)
+		if master:
+			Sfx.play("record", -4.0)
+			_show_toast("%s virou MESTRE!\n+10%% de dano e brilho dourado" % GameData.get_arrow(id)["name"], UiKit.GOLD)
 	_refresh()
 
 
@@ -737,8 +782,40 @@ func _refresh_hero() -> void:
 			price.show_text("MÁXIMO", false)
 			_restyle(buy, Color(0.75, 0.55, 0.15))
 		else:
-			price.show_text(str(cost), true)
-			_restyle(buy, GREEN if GameData.coins >= cost else GRAY)
+			if not GameData.upgrade_wave_ok(id):
+				price.show_text("Chegue à onda %d" % GameData.upgrade_wave_needed(id), false)
+				_restyle(buy, Color(0.2, 0.3, 0.5))
+			else:
+				price.show_text(str(cost), true)
+				_restyle(buy, GREEN if GameData.coins >= cost else GRAY)
+	_refresh_free_button()
+
+
+func _refresh_free_button() -> void:
+	if not _free_btn.visible:
+		return
+	var tag: PriceTag = _free_btn.get_meta("tag")
+	var left := GameData.free_coin_ads_left()
+	if left <= 0:
+		tag.show_text("Volte amanhã: mais moedas grátis", false)
+		_restyle(_free_btn, GRAY)
+	elif not Ads.is_rewarded_ready():
+		tag.show_text("Carregando anúncio...", false)
+		_restyle(_free_btn, GRAY)
+	else:
+		tag.show_text("VER ANÚNCIO: +%d   (%d hoje)" % [GameData.FREE_COIN_REWARD, left], true)
+		_restyle(_free_btn, Color(0.55, 0.3, 0.85))
+
+
+func _on_free_coins() -> void:
+	if GameData.free_coin_ads_left() <= 0 or not Ads.is_rewarded_ready():
+		Sfx.play("hurt", -10.0)
+		_shake(_free_btn)
+		return
+	Ads.show_rewarded(func() -> void:
+		GameData.claim_free_coins()
+		_celebrate(_free_btn, _coin_pill, "+%d MOEDAS!" % GameData.FREE_COIN_REWARD, UiKit.GOLD)
+		_refresh())
 
 
 func _refresh_arrows() -> void:
@@ -759,6 +836,12 @@ func _refresh_arrows() -> void:
 		(c["pips"] as Pips).set_value(lv, GameData.ARROW_MAX_LEVEL)
 		(c["pips"] as Pips).visible = unlocked
 		(c["badge"] as Control).visible = equipped
+		var xp_bar: RankBar = c["xp"]
+		var need := GameData.arrow_xp_needed(id)
+		xp_bar.visible = unlocked and need > 0
+		if need > 0:
+			xp_bar.ratio = float(GameData.get_arrow_xp(id)) / need
+			xp_bar.fill = Color(0.4, 1.0, 0.5) if GameData.arrow_xp_ok(id) else Color(0.35, 0.85, 1.0)
 		var border := UiKit.GOLD if id == _detail_id else (Color(0.4, 0.9, 0.5, 0.8) if equipped else Color(1, 1, 1, 0.15))
 		var bg := Color(0.2, 0.24, 0.4) if id == _detail_id else CARD
 		_style_card_button(c["button"], bg, border, 4 if id == _detail_id else 2)
@@ -811,7 +894,21 @@ func _refresh_detail() -> void:
 	var lv := GameData.arrow_level(id)
 	_detail_icon.arrow_id = id
 	_detail_icon.locked = not unlocked
-	_detail_name.text = def["name"] + ("" if lv == 0 else "  +%d" % lv)
+	var master := GameData.is_master(id)
+	_detail_name.text = def["name"] + ("  MESTRE" if master else ("" if lv == 0 else "  +%d" % lv))
+	_detail_name.add_theme_color_override("font_color", UiKit.GOLD if master else Color.WHITE)
+	var need := GameData.arrow_xp_needed(id)
+	var xp := GameData.get_arrow_xp(id)
+	_detail_xp_bar.visible = unlocked and need > 0
+	_detail_xp_label.visible = unlocked
+	if master:
+		_detail_xp_label.text = "Experiência completa!"
+	elif need > 0:
+		_detail_xp_bar.ratio = float(xp) / need
+		var ready := xp >= need
+		_detail_xp_bar.fill = Color(0.4, 1.0, 0.5) if ready else Color(0.35, 0.85, 1.0)
+		_detail_xp_label.text = "Experiência %d/%d%s" % [xp, need, "  PRONTA!" if ready else " (use nas partidas)"]
+		_detail_xp_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.6) if ready else Color(0.6, 0.9, 1.0))
 	_detail_pips.set_value(lv, GameData.ARROW_MAX_LEVEL)
 	_detail_pips.visible = unlocked
 	_detail_desc.text = String(def["desc"]).replace("\n", " ")
@@ -822,10 +919,11 @@ func _refresh_detail() -> void:
 		_detail_stats.text = "Dano %d   •   Estamina %d\nou libere com %d abates seguidos" % [int(dmg), int(round(st)), def["unlock"]]
 		_detail_stats.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5))
 	elif lv >= GameData.ARROW_MAX_LEVEL:
-		_detail_stats.text = "Dano %d   •   Estamina %d\nNível máximo!" % [int(dmg), int(round(st))]
+		_detail_stats.text = "Dano %d   •   Estamina %d\nMESTRE: +10%% de dano extra e brilho dourado!" % [int(dmg), int(round(st))]
 		_detail_stats.add_theme_color_override("font_color", UiKit.GOLD)
 	else:
-		var next_dmg := float(def["damage"]) * (1.0 + 0.12 * (lv + 1))
+		var next_master := GameData.MASTER_BONUS if lv + 1 >= GameData.ARROW_MAX_LEVEL else 0.0
+		var next_dmg := float(def["damage"]) * (1.0 + 0.12 * (lv + 1) + next_master)
 		var next_st := float(def["stamina"]) * (1.0 - 0.06 * (lv + 1))
 		_detail_stats.text = "Dano %d » %d   •   Estamina %d » %d\nEfeito especial +15%% mais forte" % [int(dmg), int(next_dmg), int(round(st)), int(round(next_st))]
 		_detail_stats.add_theme_color_override("font_color", Color(0.7, 1.0, 0.7))
@@ -854,6 +952,9 @@ func _refresh_detail() -> void:
 		if cost < 0:
 			_main_price.show_text("MÁXIMO", false)
 			_restyle(_main_btn, Color(0.75, 0.55, 0.15))
+		elif not GameData.arrow_xp_ok(id):
+			_main_price.show_text("USE MAIS  (%d XP)" % (need - xp), false)
+			_restyle(_main_btn, Color(0.2, 0.3, 0.5))
 		else:
 			_main_price.show_text("MELHORAR  %d" % cost, true)
 			_restyle(_main_btn, GREEN if GameData.coins >= cost else GRAY)
@@ -862,6 +963,10 @@ func _refresh_detail() -> void:
 # --- Efeitos ----------------------------------------------------------------------------
 
 func _process(delta: float) -> void:
+	_ad_check -= delta
+	if _ad_check <= 0.0 and _free_btn:
+		_ad_check = 1.0
+		_refresh_free_button()
 	_shown_coins = move_toward(_shown_coins, GameData.coins, maxf(delta * 60.0, absf(GameData.coins - _shown_coins) * delta * 6.0))
 	if _coin_label:
 		_coin_label.text = str(int(round(_shown_coins)))
