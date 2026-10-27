@@ -196,6 +196,8 @@ scripts/
     arrow_icon.gd             Ícone de cada flecha
     pause_panel.gd            Pausa
     game_over_panel.gd        Tela de derrota
+store/                        Ficha da Play Store: ícone, imagem de destaque, capturas e textos
+docs/privacidade.html         Política de privacidade (publicada pelo GitHub Pages)
 addons/admob/                 Plugin AdMob (Poing Studios, licença MIT)
 keystore/                     Chave de assinatura do APK de TESTE
 tools/build_apk.sh            Script de compilação do APK (usado pelo GitHub)
