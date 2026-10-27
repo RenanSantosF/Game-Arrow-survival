@@ -32,6 +32,10 @@ var _games_since_ad := 0
 var _last_ad_time := -1000.0
 var _reward_pending := false
 var _on_reward := Callable()
+## Último erro ao carregar o anúncio premiado (código do AdMob, -1 = nenhum).
+## 3 = sem anúncio disponível (comum em conta/app novos), 2 = sem internet,
+## 1 = pedido inválido (ID errado), 0 = erro interno.
+var rewarded_error_code := -1
 
 
 func _ready() -> void:
@@ -142,7 +146,8 @@ func _load_interstitial() -> void:
 	var cb := InterstitialAdLoadCallback.new()
 	cb.on_ad_loaded = func(ad: InterstitialAd) -> void:
 		_interstitial = ad
-	cb.on_ad_failed_to_load = func(_error: LoadAdError) -> void:
+	cb.on_ad_failed_to_load = func(error: LoadAdError) -> void:
+		push_warning("AdMob intersticial não carregou: %s" % (error.message if error else "?"))
 		get_tree().create_timer(60.0).timeout.connect(_load_interstitial)
 	InterstitialAdLoader.new().load(TEST_INTERSTITIAL_ID if _test_ads() else INTERSTITIAL_ID, AdRequest.new(), cb)
 
@@ -153,7 +158,10 @@ func _load_rewarded() -> void:
 	var cb := RewardedAdLoadCallback.new()
 	cb.on_ad_loaded = func(ad: RewardedAd) -> void:
 		_rewarded = ad
-	cb.on_ad_failed_to_load = func(_error: LoadAdError) -> void:
+		rewarded_error_code = -1
+	cb.on_ad_failed_to_load = func(error: LoadAdError) -> void:
+		rewarded_error_code = error.code if error else 0
+		push_warning("AdMob premiado não carregou: %s" % (error.message if error else "?"))
 		get_tree().create_timer(60.0).timeout.connect(_load_rewarded)
 	RewardedAdLoader.new().load(TEST_REWARDED_ID if _test_ads() else REWARDED_ID, AdRequest.new(), cb)
 
