@@ -52,8 +52,8 @@ func _build_ui() -> void:
 	_ui = CanvasLayer.new()
 	add_child(_ui)
 	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UiKit.fit_safe_area(root)
 	_ui.add_child(root)
 
 	var logo := TitleLogo.new()

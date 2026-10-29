@@ -56,16 +56,19 @@ class BossBar:
 
 func _ready() -> void:
 	layer = 10
-	_root = Control.new()
-	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_root)
-
+	# Clarão de dano e sombra do topo cobrem a tela inteira (inclusive o notch).
 	_vignette = ColorRect.new()
 	_vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_vignette.color = Color(0.8, 0, 0, 0)
 	_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(_vignette)
+	add_child(_vignette)
+	add_child(_make_top_shade())
+
+	# O resto do HUD fica dentro da área segura, longe do notch e da câmera.
+	_root = Control.new()
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UiKit.fit_safe_area(_root)
+	add_child(_root)
 
 	var bars := VBoxContainer.new()
 	bars.position = Vector2(18, 22)
@@ -148,6 +151,26 @@ func _ready() -> void:
 	_root.add_child(_banner)
 
 	rebuild_arrow_bar()
+
+
+## Faixa escura em degradê no topo para os textos se destacarem do céu.
+func _make_top_shade() -> TextureRect:
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0, 0, 0, 0.45))
+	grad.set_color(1, Color(0, 0, 0, 0))
+	var tex := GradientTexture2D.new()
+	tex.gradient = grad
+	tex.fill_from = Vector2(0, 0)
+	tex.fill_to = Vector2(0, 1)
+	tex.width = 4
+	tex.height = 64
+	var shade := TextureRect.new()
+	shade.texture = tex
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var h := 170.0 + UiKit.safe_insets(get_viewport()).position.y
+	UiKit.anchor(shade, Control.PRESET_TOP_WIDE, 0, 0, 0, h)
+	return shade
 
 
 ## Diz se um ponto da tela está sobre um botão (o jogador não mira ali).

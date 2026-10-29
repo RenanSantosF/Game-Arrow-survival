@@ -320,7 +320,7 @@ func _ready() -> void:
 	add_child(bg)
 
 	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	UiKit.fit_safe_area(margin)
 	for side in ["left", "right"]:
 		margin.add_theme_constant_override("margin_" + side, 16)
 	margin.add_theme_constant_override("margin_top", 18)

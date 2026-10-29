@@ -94,6 +94,42 @@ static func pop_in(node: Control, delay := 0.0) -> void:
 	tw.parallel().tween_property(node, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
+## Margens da área segura (notch, câmera furada, cantos arredondados) em pixels
+## da tela do jogo: position = (esquerda, topo), size = (direita, baixo).
+## No computador é zero; "--notch" na linha de comando simula um notch para testes.
+static func safe_insets(vp: Viewport) -> Rect2:
+	var vis := vp.get_visible_rect().size
+	if OS.get_cmdline_user_args().has("--notch"):
+		return Rect2(0, 90, 0, 40)
+	if not OS.has_feature("mobile"):
+		return Rect2()
+	var win := Vector2(DisplayServer.window_get_size())
+	var safe := Rect2(DisplayServer.get_display_safe_area())
+	if win.x <= 0.0 or safe.size.x <= 0.0:
+		return Rect2()
+	var k := vis.x / win.x
+	var lim := vis.y * 0.15
+	return Rect2(
+		clampf(safe.position.x * k, 0.0, lim), clampf(safe.position.y * k, 0.0, lim),
+		clampf((win.x - safe.end.x) * k, 0.0, lim), clampf((win.y - safe.end.y) * k, 0.0, lim))
+
+
+## Faz um Control ocupar a tela toda menos o notch e as bordas que o aparelho
+## esconde, e se ajusta se a tela mudar (girar, dividir tela...).
+## Chame antes de colocar o Control na árvore.
+static func fit_safe_area(c: Control) -> void:
+	c.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var apply := func() -> void:
+		var ins := safe_insets(c.get_viewport())
+		c.offset_left = ins.position.x
+		c.offset_top = ins.position.y
+		c.offset_right = -ins.size.x
+		c.offset_bottom = -ins.size.y
+	c.ready.connect(func() -> void:
+		apply.call()
+		c.get_viewport().size_changed.connect(apply), CONNECT_ONE_SHOT)
+
+
 ## Ancora um Control e define suas margens (offsets) em relação às âncoras.
 static func anchor(c: Control, preset: Control.LayoutPreset, left: float, top: float, right: float, bottom: float) -> void:
 	c.set_anchors_preset(preset)
