@@ -1,0 +1,10 @@
+=== NOTAS DA VERSÃO 0.2.0 (versionCode 24) — primeira versão na Play Store ===
+<pt-BR>
+Primeira versão! Sobreviva o máximo que puder com arco e flecha sobre ilhas flutuantes. Mire puxando o dedo, acerte a cabeça para dano extra e desbloqueie flechas de fogo, gelo, explosiva e tripla. Acerte frutas para recuperar vida e estamina e bata seu recorde.
+</pt-BR>
+<en-US>
+First release! Survive as long as you can with your bow on floating islands. Pull back to aim, hit the head for extra damage and unlock fire, ice, explosive and triple arrows. Shoot fruit to restore health and stamina and beat your high score.
+</en-US>
+<es-419>
+¡Primera versión! Sobrevive todo lo que puedas con arco y flecha sobre islas flotantes. Apunta tirando el dedo hacia atrás, acierta en la cabeza para más daño y desbloquea flechas de fuego, hielo, explosiva y triple. Dispara a las frutas para recuperar vida y energía y supera tu récord.
+</es-419>
