@@ -14,11 +14,15 @@ config/name="Arrow Survival"
 config/description="Sobrevivência infinita com arco e flecha e stickmen."
 run/main_scene="res://scenes/menu.tscn"
 config/quit_on_go_back=false
-config/features=PackedStringArray("4.3", "GL Compatibility")
+config/features=PackedStringArray("4.7", "GL Compatibility")
+boot_splash/bg_color=Color(1, 0.886, 0.498, 1)
+boot_splash/show_image=false
 config/icon="res://icon.svg"
 
 [autoload]
 
+FTSplash="*res://addons/ft_splash/ft_splash.gd"
+ScreenFit="*res://addons/play_compat/screen_fit.gd"
 GameData="*res://scripts/autoload/game_data.gd"
 Sfx="*res://scripts/autoload/sfx.gd"
 Ads="*res://scripts/autoload/ads.gd"
@@ -29,7 +33,7 @@ window/size/viewport_width=720
 window/size/viewport_height=1280
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep_width"
-window/handheld/orientation=1
+window/handheld/orientation=6
 
 [editor_plugins]
 

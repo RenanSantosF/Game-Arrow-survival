@@ -11,7 +11,10 @@ permissions:
   contents: write
 
 env:
-  GODOT_VERSION: "4.3"
+  # Godot 4.7.2: bibliotecas Android alinhadas em 16 KB (exigência da Google Play
+  # para Android 15+) e alvo API 36.
+  GODOT_VERSION: "4.7.2"
+  GODOT_SETTINGS: "4.7"
 
 jobs:
   build:
@@ -31,7 +34,7 @@ jobs:
           path: |
             ~/godot
             ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}-android-gradle-v2
+          key: godot-${{ env.GODOT_VERSION }}-android-gradle-v3
 
       - name: Baixar Godot e export templates
         if: steps.cache-godot.outputs.cache-hit != 'true'
@@ -57,31 +60,42 @@ jobs:
             ~/.gradle/wrapper
           key: gradle-${{ runner.os }}-${{ hashFiles('addons/admob/android/bin/**/*.gd') }}
 
-      - name: Instalar Android SDK 36 (exigido pelo plugin AdMob)
+      - name: Instalar Android SDK 36 (build-tools e NDK do Godot 4.7.2)
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;34.0.0" > /dev/null
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.1.0" "ndk;29.0.14206865" > /dev/null
 
       - name: Configurar Android SDK e Java no Godot
         run: |
           mkdir -p ~/.config/godot
-          cat > ~/.config/godot/editor_settings-${GODOT_VERSION}.tres <<EOT
+          cat > ~/.config/godot/editor_settings-${GODOT_SETTINGS}.tres <<EOT
           [gd_resource type="EditorSettings" format=3]
 
           [resource]
           export/android/android_sdk_path = "$ANDROID_HOME"
           export/android/java_sdk_path = "$JAVA_HOME"
           EOT
-          sed -i 's/^ *//' ~/.config/godot/editor_settings-${GODOT_VERSION}.tres
-          cat ~/.config/godot/editor_settings-${GODOT_VERSION}.tres
+          sed -i 's/^ *//' ~/.config/godot/editor_settings-${GODOT_SETTINGS}.tres
+          cat ~/.config/godot/editor_settings-${GODOT_SETTINGS}.tres
 
-      - name: Compilar APK
+      - name: Compilar APK e AAB
+        env:
+          UPLOAD_KEYSTORE_B64: ${{ secrets.UPLOAD_KEYSTORE_B64 }}
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
         run: |
+          if [ -n "$UPLOAD_KEYSTORE_B64" ]; then
+            echo "$UPLOAD_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+            export UPLOAD_KEYSTORE_PATH="$RUNNER_TEMP/upload.keystore"
+          fi
           GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 \
           VERSION_CODE=${{ github.run_number }} \
           tools/build_apk.sh
+          rm -f "$RUNNER_TEMP/upload.keystore"
           test -f build/ArrowSurvival.apk
+          test -f build/ArrowSurvival.aab
 
-      - name: Publicar APK em Releases
+      - name: Publicar APK e AAB em Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-mais-recente
@@ -89,12 +103,18 @@ jobs:
           body: |
             APK gerado automaticamente a partir do commit ${{ github.sha }}.
             Baixe **ArrowSurvival.apk** abaixo pelo celular e instale.
+            **ArrowSurvival.aab** é o pacote para a Google Play (veja no README como assinar com a chave de upload).
           prerelease: false
           make_latest: true
-          files: build/ArrowSurvival.apk
+          target_commitish: ${{ github.sha }}
+          files: |
+            build/ArrowSurvival.apk
+            build/ArrowSurvival.aab
 
-      - name: Guardar APK como artefato
+      - name: Guardar APK e AAB como artefato
         uses: actions/upload-artifact@v4
         with:
-          name: ArrowSurvival-apk
-          path: build/ArrowSurvival.apk
+          name: ArrowSurvival-android
+          path: |
+            build/ArrowSurvival.apk
+            build/ArrowSurvival.aab

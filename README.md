@@ -1,7 +1,7 @@
 # Arrow Survival
 
 Jogo 2D de sobrevivência infinita com arco e flecha e personagens stickman,
-feito em **Godot 4.3** (GDScript) para **Android**, na vertical.
+feito em **Godot 4.7.2** (GDScript) para **Android**, na vertical.
 
 Os arqueiros ficam em **ilhotas flutuantes**. Quem morre cai da plataforma
 (com ragdoll, sangue estilizado e, às vezes, desmembramento). Os inimigos são
@@ -152,10 +152,21 @@ por código, o que deixa o jogo leve e 100% offline (exceto os anúncios).
 
 ---
 
-## 6. Compilar o APK manualmente (opcional)
-`tools/build_apk.sh` gera `build/ArrowSurvival.apk` num Linux com Godot 4.3, export
-templates 4.3, JDK 17 e Android SDK (plataforma 36). Ele instala o *Android Build
-Template* em `android/build` e ajusta o `compileSdk` para 36, exigido pelo plugin AdMob.
+## 6. Compilar o APK e o AAB manualmente (opcional)
+`tools/build_apk.sh` gera `build/ArrowSurvival.apk` e `build/ArrowSurvival.aab` num Linux com
+Godot 4.7.2, export templates 4.7.2, JDK 17 e Android SDK (plataforma 36). Ele instala o
+*Android Build Template* em `android/build` e aplica `ci/android_play_compat.sh` (avisos da
+Play Console sobre APIs de ponta a ponta).
+
+**Chave de upload da Play Store:** o AAB só sai assinado com ela se os secrets
+`UPLOAD_KEYSTORE_B64` (base64 do arquivo .keystore), `UPLOAD_KEYSTORE_PASSWORD` e
+`UPLOAD_KEY_ALIAS` estiverem configurados no repositório (Settings → Secrets and variables →
+Actions). Sem eles o AAB sai com a chave de teste e precisa ser reassinado antes do envio:
+```
+zip -d ArrowSurvival.aab 'META-INF/*'
+jarsigner -keystore arrow-survival-upload.keystore ArrowSurvival.aab upload
+```
+**Nunca** coloque a chave de upload no repositório.
 
 ---
 

@@ -1,2 +1,3 @@
 # This file is dynamically generated.
-const VERSION := "5.0.0"
+
+const VERSION := "v5.1.0"

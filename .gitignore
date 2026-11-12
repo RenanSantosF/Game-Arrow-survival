@@ -11,3 +11,7 @@ build/
 /android/
 # Testes locais
 /_test/
+
+# Binários iOS do plugin AdMob (baixados sozinhos pelo editor)
+addons/admob/ios/bin/
+addons/admob/downloads/
