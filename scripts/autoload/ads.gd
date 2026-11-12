@@ -5,20 +5,24 @@ extends Node
 ##   (a primeira vez que o jogo é aberto depois de instalado).
 ## - Intersticial só entre partidas (ao tocar em "Jogar de novo" ou "Menu"),
 ##   no máximo a cada INTERSTITIAL_EVERY partidas e com intervalo mínimo de tempo.
-## - Anúncio premiado é sempre opcional: o jogador escolhe assistir para continuar.
+## - Anúncio premiado é sempre opcional: o jogador escolhe assistir para ganhar algo
+##   (continuar de onde parou, dobrar as moedas da partida, moedas grátis no Arsenal).
 ## - Sem banners durante o jogo.
 ##
-## Os IDs abaixo são os IDs DE TESTE oficiais do Google. Antes de publicar,
-## troque pelos IDs da sua conta AdMob (veja o README).
+## IDs: a versão da Play Store (AAB) usa os blocos reais da conta AdMob. O APK do
+## GitHub é exportado com a marca "test_ads" e mostra os anúncios DE TESTE do Google,
+## para quem testa nunca clicar num anúncio real (o AdMob bane contas por isso).
+## O App ID real fica em project.godot, seção [admob].
 
-signal rewarded_earned
 signal ad_closed
 
-const INTERSTITIAL_ID := "ca-app-pub-3940256099942544/1033173712"
-const REWARDED_ID := "ca-app-pub-3940256099942544/5224354917"
+const INTERSTITIAL_ID := "ca-app-pub-4311255826061303/4140344880"
+const REWARDED_ID := "ca-app-pub-4311255826061303/7794976879"
+const TEST_INTERSTITIAL_ID := "ca-app-pub-3940256099942544/1033173712"
+const TEST_REWARDED_ID := "ca-app-pub-3940256099942544/5224354917"
 
-const INTERSTITIAL_EVERY := 3          ## Partidas entre intersticiais.
-const MIN_SECONDS_BETWEEN := 150.0     ## Intervalo mínimo entre intersticiais.
+const INTERSTITIAL_EVERY := 1          ## Partidas entre intersticiais (1 = toda partida).
+const MIN_SECONDS_BETWEEN := 60.0      ## Intervalo mínimo entre intersticiais.
 const MIN_GAME_SECONDS := 25.0         ## Partidas muito curtas não contam.
 
 var _enabled := false
@@ -27,6 +31,15 @@ var _rewarded: RewardedAd = null
 var _games_since_ad := 0
 var _last_ad_time := -1000.0
 var _reward_pending := false
+var _on_reward := Callable()
+var _initialized := false
+var _rewarded_loading := false
+## Mensagem do último erro do premiado (aparece no Arsenal para diagnóstico).
+var rewarded_error_message := ""
+## Último erro ao carregar o anúncio premiado (código do AdMob, -1 = nenhum).
+## 3 = sem anúncio disponível (comum em conta/app novos), 2 = sem internet,
+## 1 = pedido inválido (ID errado), 0 = erro interno.
+var rewarded_error_code := -1
 
 
 func _ready() -> void:
@@ -34,14 +47,34 @@ func _ready() -> void:
 	_enabled = OS.get_name() == "Android" and Engine.has_singleton("PoingGodotAdMob")
 	if not _enabled:
 		return
-	MobileAds.initialize()
-	# Carrega com um pequeno atraso para não pesar na abertura do jogo.
-	get_tree().create_timer(4.0).timeout.connect(_load_all)
+	# Só pede anúncios depois que o SDK do Google terminar de iniciar
+	# (pedir antes pode falhar com erro de rede, código 2).
+	var listener := OnInitializationCompleteListener.new()
+	listener.on_initialization_complete = func(_status: InitializationStatus) -> void:
+		_initialized = true
+		_load_all()
+	MobileAds.initialize(listener)
+	# Garantia: se o aviso de "pronto" não chegar, tenta mesmo assim depois de um tempo.
+	get_tree().create_timer(12.0).timeout.connect(func() -> void:
+		if not _initialized:
+			_initialized = true
+			_load_all())
 
 
 func _load_all() -> void:
 	_load_interstitial()
 	_load_rewarded()
+
+
+## Anúncios só existem no celular (Android com o plugin AdMob).
+func is_available() -> bool:
+	return _enabled
+
+
+## Pede um anúncio premiado agora, se ainda não tiver um carregado (ou carregando).
+func request_rewarded() -> void:
+	if _enabled and _initialized:
+		_load_rewarded()
 
 
 func is_rewarded_ready() -> bool:
@@ -85,11 +118,12 @@ func maybe_show_interstitial(done: Callable) -> void:
 	ad.show()
 
 
-## Mostra o anúncio premiado. Emite "rewarded_earned" se o jogador assistir até o fim.
-func show_rewarded() -> void:
+## Mostra o anúncio premiado. Chama "on_reward" se o jogador assistir até o fim.
+func show_rewarded(on_reward: Callable) -> void:
 	if not is_rewarded_ready():
 		return
 	_reward_pending = false
+	_on_reward = on_reward
 	_last_ad_time = Time.get_ticks_msec() / 1000.0
 	_games_since_ad = 0
 	var ad := _rewarded
@@ -98,12 +132,14 @@ func show_rewarded() -> void:
 	callback.on_ad_dismissed_full_screen_content = func() -> void:
 		ad.destroy()
 		_after_ad()
-		if _reward_pending:
-			rewarded_earned.emit()
+		if _reward_pending and _on_reward.is_valid():
+			_on_reward.call()
+		_on_reward = Callable()
 		ad_closed.emit()
 	callback.on_ad_failed_to_show_full_screen_content = func(_error: AdError) -> void:
 		ad.destroy()
 		_after_ad()
+		_on_reward = Callable()
 		ad_closed.emit()
 	ad.full_screen_content_callback = callback
 	var listener := OnUserEarnedRewardListener.new()
@@ -129,17 +165,31 @@ func _load_interstitial() -> void:
 	var cb := InterstitialAdLoadCallback.new()
 	cb.on_ad_loaded = func(ad: InterstitialAd) -> void:
 		_interstitial = ad
-	cb.on_ad_failed_to_load = func(_error: LoadAdError) -> void:
+	cb.on_ad_failed_to_load = func(error: LoadAdError) -> void:
+		push_warning("AdMob intersticial não carregou: %s" % (error.message if error else "?"))
 		get_tree().create_timer(60.0).timeout.connect(_load_interstitial)
-	InterstitialAdLoader.new().load(INTERSTITIAL_ID, AdRequest.new(), cb)
+	InterstitialAdLoader.new().load(TEST_INTERSTITIAL_ID if _test_ads() else INTERSTITIAL_ID, AdRequest.new(), cb)
 
 
 func _load_rewarded() -> void:
-	if _rewarded != null:
+	if _rewarded != null or _rewarded_loading:
 		return
+	_rewarded_loading = true
 	var cb := RewardedAdLoadCallback.new()
 	cb.on_ad_loaded = func(ad: RewardedAd) -> void:
 		_rewarded = ad
-	cb.on_ad_failed_to_load = func(_error: LoadAdError) -> void:
-		get_tree().create_timer(60.0).timeout.connect(_load_rewarded)
-	RewardedAdLoader.new().load(REWARDED_ID, AdRequest.new(), cb)
+		_rewarded_loading = false
+		rewarded_error_code = -1
+	cb.on_ad_failed_to_load = func(error: LoadAdError) -> void:
+		_rewarded_loading = false
+		rewarded_error_code = error.code if error else 0
+		rewarded_error_message = error.message if error else ""
+		push_warning("AdMob premiado não carregou: %s" % (error.message if error else "?"))
+		# Erro de rede: tenta de novo logo; outros erros: espera 1 minuto.
+		get_tree().create_timer(15.0 if rewarded_error_code == 2 else 60.0).timeout.connect(_load_rewarded)
+	RewardedAdLoader.new().load(TEST_REWARDED_ID if _test_ads() else REWARDED_ID, AdRequest.new(), cb)
+
+
+## Anúncios de teste: APK de testes do GitHub (marca "test_ads") ou build de depuração.
+func _test_ads() -> bool:
+	return OS.has_feature("test_ads") or OS.is_debug_build()

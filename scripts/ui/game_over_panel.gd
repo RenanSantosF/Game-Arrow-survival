@@ -1,20 +1,29 @@
 class_name GameOverPanel
 extends Control
 ## Tela de derrota: pontuação (contando animada), recorde, estatísticas e botões.
+## Anúncios premiados opcionais: CONTINUAR de onde parou e DOBRAR as moedas.
 
 signal revive_pressed
+signal double_pressed
 signal retry_pressed
 signal menu_pressed
+signal upgrades_pressed
 
 var score := 0
 var kills := 0
 var headshots := 0
+var wave := 0
+var era_name := ""
+var coins := 0
 var seconds := 0.0
 var is_record := false
 var can_revive := false
+var can_double := false
 var new_arrows: Array = []
 
 var _score_label: Label
+var _coins_label: Label
+var _double_button: Button
 var _shown := 0.0
 var _counting := false
 
@@ -49,24 +58,35 @@ func _ready() -> void:
 		rec_tw.tween_property(rec, "scale", Vector2(1.12, 1.12), 0.45).set_trans(Tween.TRANS_SINE)
 		rec_tw.tween_property(rec, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_SINE)
 	else:
-		box.add_child(UiKit.make_label("Recorde: %d" % GameData.best_score, 32, UiKit.GOLD, 8))
+		box.add_child(UiKit.make_label(tr("Recorde: %d") % GameData.best_score, 32, UiKit.GOLD, 8))
 
-	var stats := "Abates seguidos: %d   •   Na cabeça: %d\nTempo: %d:%02d" % [kills, headshots, int(seconds) / 60, int(seconds) % 60]
+	box.add_child(UiKit.make_label(tr("Onda %d  •  %s") % [wave, era_name], 30, Color(0.7, 0.9, 1.0), 7))
+	var stats := tr("Abates seguidos: %d   •   Na cabeça: %d\nTempo: %d:%02d") % [kills, headshots, int(seconds) / 60, int(seconds) % 60]
 	box.add_child(UiKit.make_label(stats, 24, Color(0.85, 0.9, 1.0), 6))
+	_coins_label = UiKit.make_label(tr("+%d moedas  (total: %d)") % [coins, GameData.coins], 28, UiKit.GOLD, 7)
+	box.add_child(_coins_label)
 	for def in new_arrows:
-		box.add_child(UiKit.make_label("Flecha desbloqueada: %s!" % def["name"], 26, Color(0.6, 1, 0.5), 6))
+		box.add_child(UiKit.make_label(tr("Flecha desbloqueada: %s!") % tr(def["name"]), 26, Color(0.6, 1, 0.5), 6))
 
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 8)
 	box.add_child(spacer)
 
 	if can_revive:
-		var revive := UiKit.make_button("CONTINUAR (ver anúncio)", Color(0.55, 0.3, 0.85), 30, Vector2(460, 92))
+		var revive := UiKit.make_button("CONTINUAR DE ONDE PAROU\n(ver anúncio)", Color(0.55, 0.3, 0.85), 27, Vector2(460, 96))
 		revive.pressed.connect(func() -> void: revive_pressed.emit())
 		box.add_child(revive)
+		_pulse_forever(revive)
+	if can_double and coins > 0:
+		_double_button = UiKit.make_button(tr("DOBRAR MOEDAS: +%d  (ver anúncio)") % coins, Color(0.85, 0.6, 0.1), 25, Vector2(460, 76))
+		_double_button.pressed.connect(func() -> void: double_pressed.emit())
+		box.add_child(_double_button)
 	var retry := UiKit.make_button("JOGAR DE NOVO", Color(0.2, 0.7, 0.3), 40, Vector2(460, 100))
 	retry.pressed.connect(func() -> void: retry_pressed.emit())
 	box.add_child(retry)
+	var upgrades := UiKit.make_button("MELHORIAS", Color(0.15, 0.6, 0.45), 34, Vector2(460, 84))
+	upgrades.pressed.connect(func() -> void: upgrades_pressed.emit())
+	box.add_child(upgrades)
 	var menu := UiKit.make_button("MENU", Color(0.25, 0.4, 0.75), 34, Vector2(460, 84))
 	menu.pressed.connect(func() -> void: menu_pressed.emit())
 	box.add_child(menu)
@@ -77,6 +97,29 @@ func _ready() -> void:
 	var tw := panel.create_tween()
 	tw.tween_interval(0.5)
 	tw.tween_callback(func() -> void: _counting = true)
+
+
+## Depois de assistir o anúncio de dobrar: atualiza o texto e some com o botão.
+func show_doubled(total_coins: int) -> void:
+	coins = total_coins
+	_coins_label.text = tr("+%d moedas  (total: %d)") % [coins, GameData.coins]
+	_coins_label.add_theme_color_override("font_color", Color(1, 0.95, 0.5))
+	_coins_label.pivot_offset = _coins_label.size / 2.0
+	var tw := _coins_label.create_tween()
+	tw.tween_property(_coins_label, "scale", Vector2(1.3, 1.3), 0.12)
+	tw.tween_property(_coins_label, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if is_instance_valid(_double_button):
+		_double_button.queue_free()
+	Sfx.play("record", -4.0)
+
+
+func _pulse_forever(b: Control) -> void:
+	await get_tree().process_frame
+	b.pivot_offset = b.size / 2.0
+	var tw := b.create_tween().set_loops()
+	tw.tween_interval(0.8)
+	tw.tween_property(b, "scale", Vector2(1.05, 1.05), 0.3).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(b, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_SINE)
 
 
 func _process(delta: float) -> void:

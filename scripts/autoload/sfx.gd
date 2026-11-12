@@ -71,6 +71,29 @@ func _build_sounds() -> void:
 	_streams["freeze"] = _make(0.45, func(t: float, _i: int) -> float:
 		var env := exp(-t * 6.0)
 		return (sin(TAU * 1800.0 * t) + sin(TAU * 2400.0 * t) * 0.6) * env * 0.18 + randf_range(-1, 1) * env * 0.1)
+	_streams["bone"] = _make(0.2, func(t: float, _i: int) -> float:
+		var crack := randf_range(-1, 1) * exp(-t * 70.0)
+		var snap := randf_range(-1, 1) * exp(-maxf(t - 0.04, 0.0) * 90.0) * (1.0 if t > 0.04 else 0.0)
+		return (crack * 0.8 + snap * 0.6 + sin(TAU * 140.0 * t) * exp(-t * 25.0) * 0.4))
+	_streams["zap"] = _make(0.3, func(t: float, _i: int) -> float:
+		var env := exp(-t * 9.0)
+		var buzz := signf(sin(TAU * 140.0 * t)) * 0.3 + randf_range(-1, 1) * 0.5
+		return buzz * env * (0.6 + 0.4 * signf(sin(TAU * 31.0 * t))))
+	_streams["shield"] = _make(0.18, func(t: float, _i: int) -> float:
+		var env := exp(-t * 22.0)
+		return (sin(TAU * 820.0 * t) * 0.5 + sin(TAU * 1310.0 * t) * 0.3 + randf_range(-1, 1) * 0.3) * env)
+	_streams["shield_break"] = _make(0.5, func(t: float, _i: int) -> float:
+		var env := exp(-t * 7.0)
+		return (randf_range(-1, 1) * 0.6 + sin(TAU * 600.0 * t * (1.0 - t)) * 0.4) * env)
+	_streams["boss"] = _make(1.4, func(t: float, _i: int) -> float:
+		var env := minf(t * 6.0, 1.0) * exp(-t * 1.6)
+		var f := 70.0 + 10.0 * sin(t * 9.0)
+		return (sin(TAU * f * t) + signf(sin(TAU * f * 1.5 * t)) * 0.25) * env * 0.55)
+	_streams["wave"] = _make(0.7, func(t: float, _i: int) -> float:
+		var notes := [392.0, 523.0, 659.0]
+		var idx := mini(int(t / 0.14), 2)
+		var lt := t - idx * 0.14
+		return (sin(TAU * notes[idx] * t) + sin(TAU * notes[idx] * 2.0 * t) * 0.2) * exp(-lt * 5.0) * 0.3)
 	_streams["fire"] = _make(0.4, func(t: float, _i: int) -> float:
 		var env := minf(t * 10.0, 1.0) * exp(-t * 5.0)
 		return randf_range(-1, 1) * env * 0.4)

@@ -78,24 +78,20 @@ jobs:
           sed -i 's/^ *//' ~/.config/godot/editor_settings-${GODOT_SETTINGS}.tres
           cat ~/.config/godot/editor_settings-${GODOT_SETTINGS}.tres
 
-      - name: Compilar APK e AAB
+      - name: Compilar APK (e AAB para a Play Store)
         env:
-          UPLOAD_KEYSTORE_B64: ${{ secrets.UPLOAD_KEYSTORE_B64 }}
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
           UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
           UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
         run: |
-          if [ -n "$UPLOAD_KEYSTORE_B64" ]; then
-            echo "$UPLOAD_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
-            export UPLOAD_KEYSTORE_PATH="$RUNNER_TEMP/upload.keystore"
-          fi
           GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 \
           VERSION_CODE=${{ github.run_number }} \
           tools/build_apk.sh
-          rm -f "$RUNNER_TEMP/upload.keystore"
           test -f build/ArrowSurvival.apk
-          test -f build/ArrowSurvival.aab
 
-      - name: Publicar APK e AAB em Releases
+      - name: Publicar APK em Releases
+        id: release
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-mais-recente
@@ -103,18 +99,48 @@ jobs:
           body: |
             APK gerado automaticamente a partir do commit ${{ github.sha }}.
             Baixe **ArrowSurvival.apk** abaixo pelo celular e instale.
-            **ArrowSurvival.aab** é o pacote para a Google Play (veja no README como assinar com a chave de upload).
           prerelease: false
           make_latest: true
-          target_commitish: ${{ github.sha }}
-          files: |
-            build/ArrowSurvival.apk
-            build/ArrowSurvival.aab
+          files: build/ArrowSurvival.apk
 
-      - name: Guardar APK e AAB como artefato
+      # A API do GitHub às vezes falha por instantes: tenta de novo uma vez.
+      - name: Publicar APK em Releases (nova tentativa)
+        if: steps.release.outcome == 'failure'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-mais-recente
+          name: "Arrow Survival — APK mais recente (build ${{ github.run_number }})"
+          body: |
+            APK gerado automaticamente a partir do commit ${{ github.sha }}.
+            Baixe **ArrowSurvival.apk** abaixo pelo celular e instale.
+          prerelease: false
+          make_latest: true
+          files: build/ArrowSurvival.apk
+
+      - name: Guardar APK como artefato
         uses: actions/upload-artifact@v4
         with:
-          name: ArrowSurvival-android
-          path: |
-            build/ArrowSurvival.apk
-            build/ArrowSurvival.aab
+          name: ArrowSurvival-apk
+          path: build/ArrowSurvival.apk
+
+      # O AAB (Play Store) fica só aqui, na página da execução em "Actions" (não é público).
+      - name: Guardar AAB da Play Store
+        if: hashFiles('build/ArrowSurvival.aab') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArrowSurvival-PlayStore-aab
+          path: build/ArrowSurvival.aab
+
+      # Execução manual: o AAB também numa release separada (pré-lançamento), para
+      # baixar com link direto. Apague a release depois de enviar o AAB à Play Store.
+      - name: AAB da Play Store numa release (só execução manual)
+        if: github.event_name == 'workflow_dispatch' && hashFiles('build/ArrowSurvival.aab') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: aab-play-store-${{ github.run_number }}
+          name: "Arrow Survival — AAB Play Store (build ${{ github.run_number }})"
+          body: AAB assinado com a chave de envio da Play Store (versionCode ${{ github.run_number }}).
+          prerelease: true
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          files: build/ArrowSurvival.aab

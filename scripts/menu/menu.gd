@@ -1,6 +1,7 @@
 extends Node2D
 ## Menu inicial: título animado, duelo de stickmen ao fundo, botão JOGAR,
-## escolha de flechas, recorde e opção de som. Nunca mostra anúncio.
+## escolha de flechas, melhorias do personagem, recorde e opção de som.
+## Nunca mostra anúncio.
 
 const LEFT_SPOT := Vector2(135, 700)
 const RIGHT_SPOT := Vector2(585, 640)
@@ -14,16 +15,19 @@ var _left_turn := true
 var _shooter: Stickman = null
 var _draw_time := 0.0
 var _sound_button: Button
+var _coins_label: Label
 
 
 func _ready() -> void:
 	randomize()
+	Music.set_mode(false)
 	add_child(SkyBackground.new())
 	_world = Node2D.new()
 	add_child(_world)
 	_world.add_child(Fx.new())
 
 	_left = _make_archer(LEFT_SPOT, false, Color(0.12, 0.35, 0.85), Stickman.Accessory.BANDANA, Color(0.98, 0.78, 0.1), Vector2(-400, 0))
+	PlayerArcher.apply_rank_look(_left)
 	_right = _make_archer(RIGHT_SPOT, true, Color(0.82, 0.12, 0.12), Stickman.Accessory.HAT, Color(0.2, 0.2, 0.22), Vector2(400, 0))
 	_build_ui()
 
@@ -48,22 +52,26 @@ func _build_ui() -> void:
 	_ui = CanvasLayer.new()
 	add_child(_ui)
 	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UiKit.fit_safe_area(root)
 	_ui.add_child(root)
 
 	var logo := TitleLogo.new()
 	UiKit.anchor(logo, Control.PRESET_CENTER_TOP, -360, 70, 360, 330)
 	root.add_child(logo)
 
-	var rec_text := "Recorde: %d   •   Maior sequência: %d" % [GameData.best_score, GameData.best_kills]
+	var rec_text := tr("Recorde: %d   •   Melhor onda: %d") % [GameData.best_score, GameData.best_wave]
 	var rec := UiKit.make_label(rec_text, 26, Color(1, 0.92, 0.7), 7)
 	UiKit.anchor(rec, Control.PRESET_CENTER_TOP, -340, 340, 340, 380)
 	root.add_child(rec)
+	_coins_label = UiKit.make_label("", 28, UiKit.GOLD, 7)
+	UiKit.anchor(_coins_label, Control.PRESET_CENTER_TOP, -340, 382, 340, 420)
+	root.add_child(_coins_label)
+	_refresh_coins()
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 20)
-	UiKit.anchor(box, Control.PRESET_CENTER_BOTTOM, -230, -470, 230, -90)
+	box.add_theme_constant_override("separation", 18)
+	UiKit.anchor(box, Control.PRESET_CENTER_BOTTOM, -230, -570, 230, -90)
 	box.alignment = BoxContainer.ALIGNMENT_END
 	root.add_child(box)
 
@@ -75,11 +83,25 @@ func _build_ui() -> void:
 	arrows.pressed.connect(_on_arrows)
 	box.add_child(arrows)
 
-	_sound_button = UiKit.make_button(_sound_text(), Color(0.22, 0.45, 0.75), 30, Vector2(460, 80))
+	var upgrades := UiKit.make_button("MELHORIAS", Color(0.15, 0.6, 0.45), 38, Vector2(460, 96))
+	upgrades.pressed.connect(_on_upgrades)
+	box.add_child(upgrades)
+
+	# Som e idioma lado a lado.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	box.add_child(row)
+	_sound_button = UiKit.make_button(_sound_text(), Color(0.22, 0.45, 0.75), 24, Vector2(224, 80))
 	_sound_button.pressed.connect(func() -> void:
 		GameData.set_sound(not GameData.sound_enabled)
 		_sound_button.text = _sound_text())
-	box.add_child(_sound_button)
+	row.add_child(_sound_button)
+	var lang := UiKit.make_button(tr("IDIOMA: %s") % Lang.LANGUAGE_NAMES[Lang.current()], Color(0.22, 0.45, 0.75), 24, Vector2(224, 80))
+	lang.pressed.connect(func() -> void:
+		Lang.cycle()
+		# Recarrega o menu para todos os textos mudarem de idioma.
+		get_tree().reload_current_scene())
+	row.add_child(lang)
 
 	var hint := UiKit.make_label("Puxe o dedo para trás e solte para atirar.\nAcerte as frutas: vermelha = vida, amarela = estamina.", 20, Color(1, 1, 1, 0.9), 5)
 	UiKit.anchor(hint, Control.PRESET_BOTTOM_WIDE, 0, -80, 0, -20)
@@ -88,7 +110,7 @@ func _build_ui() -> void:
 	# Entrada animada dos botões e pulsação do JOGAR.
 	await get_tree().process_frame
 	var delay := 0.9
-	for b in [play, arrows, _sound_button]:
+	for b in [play, arrows, upgrades, _sound_button, lang]:
 		UiKit.pop_in(b, delay)
 		delay += 0.12
 	var pulse := play.create_tween().set_loops()
@@ -106,9 +128,25 @@ func _on_play() -> void:
 	UiKit.fade_to_scene(self, "res://scenes/game.tscn")
 
 
+func _refresh_coins() -> void:
+	_coins_label.text = tr("Moedas: %d") % GameData.coins
+
+
+func _on_upgrades() -> void:
+	_open_arsenal(Arsenal.Tab.HERO)
+
+
 func _on_arrows() -> void:
-	var panel := ArrowSelectPanel.new()
-	_ui.add_child(panel)
+	_open_arsenal(Arsenal.Tab.ARROWS)
+
+
+func _open_arsenal(tab: Arsenal.Tab) -> void:
+	var arsenal := Arsenal.new()
+	arsenal.start_tab = tab
+	arsenal.closed.connect(func() -> void:
+		_refresh_coins()
+		PlayerArcher.apply_rank_look(_left))
+	_ui.add_child(arsenal)
 
 
 func _notification(what: int) -> void:

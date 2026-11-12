@@ -4,8 +4,9 @@ Jogo 2D de sobrevivência infinita com arco e flecha e personagens stickman,
 feito em **Godot 4.7.2** (GDScript) para **Android**, na vertical.
 
 Os arqueiros ficam em **ilhotas flutuantes**. Quem morre cai da plataforma
-(com ragdoll, sangue estilizado e, às vezes, desmembramento). Os inimigos são
-substituídos por novos, cada vez mais rápidos, precisos e numerosos.
+(com ragdoll, sangue estilizado e, às vezes, desmembramento ou partido ao meio).
+Os inimigos vêm em **ondas** e **eras** cada vez mais fortes, com mini-chefes e
+**chefes** gigantes; as moedas ganhas compram **melhorias** para o personagem.
 
 ---
 
@@ -31,40 +32,106 @@ a mesma assinatura de teste (`keystore/`) e um número de versão crescente.
 | Ação | Como |
 |---|---|
 | Mirar e atirar | Toque, **arraste o dedo para trás** (como um estilingue) e solte. Quanto mais puxar, mais forte. |
-| Trocar de flecha | Toque nos ícones na barra de baixo (ou em **FLECHAS** no menu). |
+| Trocar de flecha | Toque nos ícones na barra de baixo (só aparecem as flechas **equipadas**). |
 | Recuperar vida | Acerte a **maçã vermelha** que sobe do fundo da tela. |
 | Recuperar estamina | Acerte a **fruta-estrela amarela**. |
 | Pausar | Botão **II** no canto (ou o botão Voltar do Android). |
 
-- **Vida:** o jogador tem 150; os inimigos começam com 40 (aumenta aos poucos).
-- **Dano por região:** cabeça ×3 (×2,5 no jogador; elmo reduz para ×2), tronco ×1,
-  pernas ×0,7, braço ×0,6.
-- **Estamina:** cada flecha gasta estamina (número abaixo do ícone) e segurar o arco
+- **Vida:** o jogador tem 150 (mais com melhorias); os inimigos começam com ~42.
+- **Dano por região:** cabeça ×3 (×2 no jogador; elmo/coroa reduzem para ×2),
+  **barriga ×2,5** (×1,5 no jogador), peito ×1, pernas ×0,7, braço ×0,6. As flechas inimigas tiram de 10 a 19 de vida (sobe com as ondas).
+- **Estamina:** cada flecha tem um custo (número abaixo do ícone) que vale para o arco
+  **totalmente puxado**; tiros mais fracos gastam menos (até 40% do custo). Segurar o arco
   puxado cansa. Cansado, o personagem ofega, a mira treme e o tiro sai fraco.
-  Ela se recupera sozinha quando você não está mirando.
-- **Pontos:** 10 por abate (15 caçador, 25 elite), **+15 na cabeça**, bônus de
-  **combo** para abates seguidos em até 2,5 s, +5 por fruta.
-- **Recorde** e **maior sequência** ficam salvos no aparelho.
+  **Acertar recupera estamina:** +18 na cabeça, +10 na barriga, +4 no peito, +2 em braço/perna.
+- **Mira:** dá para mirar quase na vertical, para cima ou para baixo.
+- **Desmembramento:** tiros fortes no tronco (principalmente na barriga) podem **partir o
+  corpo ao meio**; o Arpão e as explosões partem com mais facilidade.
+- **Membros quebrados (inimigo vivo):** dano acumulado num braço ou perna **quebra** o
+  membro (braço quebrado: mira bem pior; perna quebrada: mais lento e torto). Mais dano
+  **arranca** o membro: sem o braço do arco o inimigo não atira mais e sangra até morrer.
+  O Arpão pode quebrar ou arrancar de uma vez.
+- **Pontos:** 10 por abate (+5 por era), 40+ mini-chefe, 150+ chefe, **+15 na cabeça**,
+  bônus de **combo** para abates seguidos em até 2,5 s, +5 por fruta.
+- **Recorde**, **melhor onda** e **moedas** ficam salvos no aparelho.
 
-### Flechas desbloqueáveis (abates seguidos, sem morrer)
+### Ondas, eras e chefes
+A partida é infinita, mas dividida em **ondas** (`game.gd`). Ao limpar uma onda você
+recupera 12% da vida, um pouco de estamina e ganha moedas. A cada **5 ondas** começa uma
+nova **era**: inimigos com novas cores, acessórios e proteções, e o céu muda de cor.
+
+| Era | Ondas | Inimigos | Proteção | Chefe (onda 5) |
+|---|---|---|---|---|
+| 1 Recrutas | 1–5 | Stickmen simples, cores neutras | — | Grandalhão |
+| 2 Bandidos | 6–10 | Vermelho/laranja, chapéus e bandanas | — | Barão Bandido (rajada de 2) |
+| 3 Caçadores da Floresta | 11–15 | Capuzes verdes/roxos | Escudos de madeira (20%) | Rainha da Floresta (rajada de 3) |
+| 4 Cavaleiros de Ferro | 16–20 | Aço e elmos | Escudos de ferro (40%) | Colosso de Ferro (escudo enorme) |
+| 5 Guarda Real | 21–25 | Azul real, marfim e ouro | Escudos reais (45%) | Rei Arqueiro (coroa, rajada de 3) |
+| 6 Sombras | 26–30 | Violeta e ciano, olhos brilhantes | Escudos sombrios (35%) | Senhor das Sombras (rajada de 4) |
+
+- A **onda 3** de cada era termina com um **mini-chefe** (maior, 2,6× vida, barra de vida).
+- A **onda 5** é a do **chefe**: bem maior, barra de vida no topo, às vezes com escudo e
+  atirando várias flechas de uma vez. Vencer dá 35% de vida e um bônus de moedas.
+- **Escudos** bloqueiam flechas até quebrar (veja as rachaduras). Mire na cabeça ou use
+  Explosiva, Arpão ou Perfurante.
+- Depois da era 6 as eras voltam (“Bandidos +1”…) com inimigos cada vez mais fortes.
+- Precisão e velocidade dos inimigos chegam ao máximo na onda 29; depois disso vida e
+  dano continuam subindo devagar.
+
+### Arsenal (menu → MELHORIAS ou FLECHAS, ou na tela de derrota)
+Uma tela só, com duas abas: **ARQUEIRO** (melhorias do personagem) e **FLECHAS**
+(equipar, melhorar e comprar flechas). Toda compra mostra o que muda (“190 » 210”).
+
+Melhorar **não é só pagar**:
+- **Flechas** precisam de **experiência**, que só se ganha usando a flecha nas partidas
+  (acerto = 1, cabeça/barriga = 3, abate = +2). Por nível: 12, 30, 60, 100 e 160 XP.
+  No nível máximo a flecha vira **MESTRE**: +10% de dano extra, brilho e rastro dourados
+  e coroa no ícone.
+- **Melhorias do arqueiro** exigem ter chegado a certas ondas: nível 2 = onda 3,
+  nível 3 = onda 6, nível 4 = onda 10, nível 5 = onda 15, nível 6 = onda 20.
+
+#### Melhorias do arqueiro
+Moedas: 1+ por abate, +1 na cabeça, mini-chefe 5+, chefe 20+, bônus por onda vencida.
+O visual do arqueiro evolui com as melhorias: Aprendiz (bandana) → Caçador (capuz) →
+Cavaleiro (elmo) → Rei Arqueiro (coroa).
+
+| Melhoria | Efeito por nível | Níveis |
+|---|---|---:|
+| Vida | +20 de vida máxima | 6 |
+| Força | +10% de dano das flechas | 6 |
+| Fôlego | +15 de estamina máxima | 5 |
+| Recuperação | +20% de estamina por segundo | 5 |
+| Armadura | −7% de dano recebido | 5 |
+| Arco Longo | +6% de força do tiro | 4 |
+
+Preços em `scripts/autoload/game_data.gd` (constante `UPGRADES`).
+
+#### Espaços de flecha
+Só as flechas **equipadas** vão para a partida. Você começa com **2 espaços** (a Comum,
+fixa, + 1). Espaços extras custam caro: 3º = 400, 4º = 1000, 5º = 2200 moedas.
+Flechas novas desbloqueadas são equipadas sozinhas se houver espaço livre.
+
+#### Flechas
+Desbloqueie com abates seguidos (sem morrer) **ou compre com moedas**. Cada flecha tem
+**5 níveis de melhoria**: +12% de dano, −6% de estamina e +15% de efeito por nível
+(veneno/fogo/gelo duram mais, explosão maior, Vampira cura mais, Teleguiada vira mais;
+no nível 3 a Perfurante atravessa 3 inimigos e o Raio salta para 3).
 
 | Flecha | Abates | Efeito | Estamina |
 |---|---:|---|---:|
-| Comum | 0 | — | 12 |
-| Veneno | 10 | Dano contínuo por 4 s | 14 |
-| Fogo | 20 | Queima por 3 s | 16 |
-| Gelo | 35 | Congela o inimigo (não atira) por 3 s | 16 |
-| Explosiva | 50 | Explosão em área | 24 |
-| Tripla | 75 | Três flechas de uma vez | 26 |
+| Comum | 0 | — | 7 |
+| Veneno | 8 | Dano contínuo por 4 s | 8 |
+| Fogo | 16 | Queima por 3 s | 9 |
+| Gelo | 25 | Congela o inimigo (não atira) por 3 s | 9 |
+| Perfurante | 35 | Atravessa escudos e até 2 inimigos | 10 |
+| Vampira | 45 | Recupera 35% do dano causado como vida | 10 |
+| Explosiva | 55 | Explosão em área, quebra escudos | 14 |
+| Raio | 70 | Salta para até 2 inimigos próximos | 12 |
+| Tripla | 85 | Três flechas de uma vez | 15 |
+| Teleguiada | 100 | Faz curva atrás do inimigo | 11 |
+| Arpão | 120 | Dano enorme, parte corpos e escudos | 18 |
 
 Os valores ficam em `scripts/autoload/game_data.gd` (constante `ARROWS`).
-
-### Dificuldade infinita
-O nível cresce com os abates e com o tempo (`game.gd → difficulty_level()`):
-1 inimigo no começo → até 4 ao mesmo tempo; mira mais rápida e precisa; menos tempo
-entre tiros; mais vida; inimigos **caçadores** (capuz) e **elite** (elmo) aparecem depois.
-Os inimigos surgem só dentro de uma **área limite** à direita (`ENEMY_AREA`) e sempre
-afastados uns dos outros (`MIN_ENEMY_DISTANCE`).
 
 ---
 
@@ -76,10 +143,13 @@ Regras para não incomodar (`scripts/autoload/ads.gd`):
 - **Nunca** há anúncio ao abrir o app, nem anúncio obrigatório na **primeira sessão**
   (a primeira vez que o jogo é aberto depois de instalado).
 - **Intersticial** só entre partidas (ao tocar em "Jogar de novo" ou "Menu"), no máximo
-  **a cada 3 partidas** e com pelo menos **150 s** entre um e outro. Partidas com menos
+  **a cada partida** (as partidas são longas) e com pelo menos **60 s** entre um e outro. Partidas com menos
   de 25 s não contam.
-- **Premiado (opcional):** na tela de derrota, "Continuar (ver anúncio)" revive o
-  jogador uma vez por partida, com 60% da vida, mantendo a sequência de abates.
+- **Premiados (sempre opcionais):**
+  - tela de derrota → **Continuar de onde parou** (uma vez por partida, 60% da vida,
+    mesma onda e sequência de abates);
+  - tela de derrota → **Dobrar moedas** da partida (uma vez por partida);
+  - Arsenal → **+40 moedas grátis** (até 3 por dia).
 - **Sem banners.**
 
 > Por enquanto são usados os **IDs de TESTE** do Google (aparece "Test Ad").
@@ -101,13 +171,16 @@ scripts/
   autoload/
     game_data.gd              Flechas, recorde, desbloqueios e opções salvos (user://save.cfg)
     sfx.gd                    Efeitos sonoros sintetizados por código (sem arquivos de áudio)
+    music.gd                  Música de fundo em loop, sintetizada por código (numa thread)
+    lang.gd                   Idiomas (português, inglês e espanhol) e detecção do aparelho
     ads.gd                    Anúncios e regras de frequência
   game/
-    game.gd                   Partida: surgimento, dificuldade, frutas, pontos, derrota, reviver
-    stickman.gd               Stickman: desenho, animação, zonas de acerto, status, morte
+    game.gd                   Partida: ondas, eras, chefes, frutas, pontos, moedas, derrota, reviver
+    stickman.gd               Stickman: desenho, animação, zonas de acerto, escudo, status, morte
     player_archer.gd          Jogador: mira por toque, estamina
-    enemy_archer.gd           Inimigo: IA que mira (balística) e atira
+    enemy_archer.gd           Inimigo: IA que mira (balística) e atira (chefes em rajadas)
     ragdoll.gd                Corpo caindo (física Verlet) com desmembramento
+    limb_piece.gd             Membro arrancado em vida, voando e caindo
     arrow.gd / arrow_draw.gd  Flecha: física, rastro, efeitos e desenho
     floating_platform.gd      Ilhota flutuante (entra, balança, desmorona)
     fruit.gd                  Frutas de vida e estamina
@@ -117,7 +190,7 @@ scripts/
   menu/
     menu.gd                   Menu com duelo de stickmen ao fundo
     title_logo.gd             Título animado
-    arrow_select_panel.gd     Escolha de flechas
+    arsenal.gd                Arsenal: melhorias do arqueiro, espaços, equipar/melhorar/comprar flechas
   ui/
     ui_kit.gd                 Botões, painéis e transições no mesmo estilo
     game_hud.gd               HUD da partida
@@ -125,6 +198,8 @@ scripts/
     arrow_icon.gd             Ícone de cada flecha
     pause_panel.gd            Pausa
     game_over_panel.gd        Tela de derrota
+store/                        Ficha da Play Store: ícone, imagem de destaque, capturas e textos
+docs/privacidade.html         Política de privacidade (publicada pelo GitHub Pages)
 addons/admob/                 Plugin AdMob (Poing Studios, licença MIT)
 keystore/                     Chave de assinatura do APK de TESTE
 tools/build_apk.sh            Script de compilação do APK (usado pelo GitHub)
@@ -152,21 +227,10 @@ por código, o que deixa o jogo leve e 100% offline (exceto os anúncios).
 
 ---
 
-## 6. Compilar o APK e o AAB manualmente (opcional)
-`tools/build_apk.sh` gera `build/ArrowSurvival.apk` e `build/ArrowSurvival.aab` num Linux com
-Godot 4.7.2, export templates 4.7.2, JDK 17 e Android SDK (plataforma 36). Ele instala o
-*Android Build Template* em `android/build` e aplica `ci/android_play_compat.sh` (avisos da
-Play Console sobre APIs de ponta a ponta).
-
-**Chave de upload da Play Store:** o AAB só sai assinado com ela se os secrets
-`UPLOAD_KEYSTORE_B64` (base64 do arquivo .keystore), `UPLOAD_KEYSTORE_PASSWORD` e
-`UPLOAD_KEY_ALIAS` estiverem configurados no repositório (Settings → Secrets and variables →
-Actions). Sem eles o AAB sai com a chave de teste e precisa ser reassinado antes do envio:
-```
-zip -d ArrowSurvival.aab 'META-INF/*'
-jarsigner -keystore arrow-survival-upload.keystore ArrowSurvival.aab upload
-```
-**Nunca** coloque a chave de upload no repositório.
+## 6. Compilar o APK manualmente (opcional)
+`tools/build_apk.sh` gera `build/ArrowSurvival.apk` num Linux com Godot 4.7.2, export
+templates 4.7.2, JDK 17 e Android SDK (plataforma 36). Ele instala o *Android Build
+Template* em `android/build` e ajusta o `compileSdk` para 36, exigido pelo plugin AdMob.
 
 ---
 
@@ -178,5 +242,6 @@ jarsigner -keystore arrow-survival-upload.keystore ArrowSurvival.aab upload
 - [x] **Etapa 4** — Sobrevivência: pontos, recorde salvo, surgimento em área limite, dificuldade
 - [x] **Etapa 5** — Menu animado, escolha de flechas, pausa, derrota, sons, frutas, estamina
 - [x] Anúncios com IDs de teste (intersticial espaçado + premiado opcional)
+- [x] Ondas, eras com novos inimigos, mini-chefes, chefes com escudo, melhorias e 11 flechas
 - [ ] **Etapa 6** — Publicação: conta AdMob real, chave de envio privada, AAB, consentimento
       (UMP/LGPD/GDPR), ficha da Play Store e testes fechados

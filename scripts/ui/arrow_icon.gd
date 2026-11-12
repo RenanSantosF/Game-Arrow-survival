@@ -39,6 +39,16 @@ func _draw() -> void:
 
 	if locked:
 		_draw_lock(c + Vector2(r * 0.42, r * 0.42), r * 0.42)
+	elif GameData.is_master(arrow_id):
+		# Flecha MESTRE: anel dourado brilhando e coroa no topo.
+		var glow := 0.6 + 0.4 * sin(_time * 3.0)
+		draw_arc(c, r + 1.0, 0, TAU, 40, Color(1, 0.82, 0.25, glow), 4.0, true)
+		var k := r * 0.32
+		var top := c + Vector2(0, -r + k * 0.2)
+		draw_colored_polygon(PackedVector2Array([
+			top + Vector2(-k, k * 0.5), top + Vector2(-k, -k * 0.5), top + Vector2(-k * 0.45, 0),
+			top + Vector2(0, -k * 0.8), top + Vector2(k * 0.45, 0), top + Vector2(k, -k * 0.5), top + Vector2(k, k * 0.5),
+		]), UiKit.GOLD)
 
 
 func _draw_lock(p: Vector2, s: float) -> void:
