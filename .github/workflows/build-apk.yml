@@ -89,6 +89,20 @@ jobs:
           tools/build_apk.sh
           test -f build/ArrowSurvival.apk
 
+      # Execução manual: o AAB também numa release separada (pré-lançamento), para
+      # baixar com link direto. Apague a release depois de enviar o AAB à Play Store.
+      - name: AAB da Play Store numa release (só execução manual)
+        if: github.event_name == 'workflow_dispatch' && hashFiles('build/ArrowSurvival.aab') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: aab-play-store-${{ github.run_number }}
+          name: "Arrow Survival — AAB Play Store (build ${{ github.run_number }})"
+          body: AAB assinado com a chave de envio da Play Store (versionCode ${{ github.run_number }}).
+          prerelease: true
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          files: build/ArrowSurvival.aab
+
       - name: Publicar APK em Releases
         id: release
         continue-on-error: true
@@ -106,6 +120,7 @@ jobs:
       # A API do GitHub às vezes falha por instantes: tenta de novo uma vez.
       - name: Publicar APK em Releases (nova tentativa)
         if: steps.release.outcome == 'failure'
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-mais-recente
@@ -130,17 +145,3 @@ jobs:
         with:
           name: ArrowSurvival-PlayStore-aab
           path: build/ArrowSurvival.aab
-
-      # Execução manual: o AAB também numa release separada (pré-lançamento), para
-      # baixar com link direto. Apague a release depois de enviar o AAB à Play Store.
-      - name: AAB da Play Store numa release (só execução manual)
-        if: github.event_name == 'workflow_dispatch' && hashFiles('build/ArrowSurvival.aab') != ''
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: aab-play-store-${{ github.run_number }}
-          name: "Arrow Survival — AAB Play Store (build ${{ github.run_number }})"
-          body: AAB assinado com a chave de envio da Play Store (versionCode ${{ github.run_number }}).
-          prerelease: true
-          make_latest: false
-          target_commitish: ${{ github.sha }}
-          files: build/ArrowSurvival.aab
