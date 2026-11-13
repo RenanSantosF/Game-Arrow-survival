@@ -3,6 +3,8 @@ extends Node
 ## Fica disponível em qualquer script pelo nome "GameData" (Autoload).
 
 signal sound_changed(enabled: bool)
+## Modo leve (celulares fracos) ligado/desligado.
+signal lite_changed(enabled: bool)
 
 const SAVE_PATH := "user://save.cfg"
 
@@ -131,6 +133,10 @@ var total_kills := 0
 var games_played := 0
 var sessions := 0
 var sound_enabled := true
+## Modo leve para celular fraco: imagem em 720p, 30 quadros por segundo, menos
+## partículas e céu simplificado. Liga sozinho se o jogo ficar lento (ver game.gd)
+## e, na primeira abertura, em aparelhos com pouca memória ou poucos núcleos.
+var lite_mode := false
 ## Idioma: "auto" (do aparelho), "pt", "en" ou "es". Veja o autoload Lang.
 var language := "auto"
 var selected_arrow := "normal"
@@ -152,6 +158,7 @@ var free_coin_day := ""
 
 func _ready() -> void:
 	load_data()
+	_apply_lite()
 	sessions += 1
 	save_data()
 	_apply_sound()
@@ -459,6 +466,34 @@ func set_sound(enabled: bool) -> void:
 	sound_changed.emit(enabled)
 
 
+func set_lite(enabled: bool) -> void:
+	if enabled == lite_mode:
+		return
+	lite_mode = enabled
+	_apply_lite()
+	save_data()
+	lite_changed.emit(enabled)
+
+
+func _apply_lite() -> void:
+	if not OS.has_feature("mobile"):
+		return
+	var root := get_tree().root
+	# Leve: desenha na resolução do jogo (720 de largura) e amplia; normal: na da tela.
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_VIEWPORT if lite_mode else Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	Engine.max_fps = 30 if lite_mode else 0
+
+
+## Primeira abertura (sem save): aparelho com até 3 GB de RAM ou até 4 núcleos
+## começa no modo leve.
+static func _guess_weak_device() -> bool:
+	if not OS.has_feature("mobile"):
+		return false
+	var mem: Dictionary = OS.get_memory_info()
+	var ram_gb := float(mem.get("physical", -1)) / 1073741824.0
+	return (ram_gb > 0.0 and ram_gb <= 3.2) or OS.get_processor_count() <= 4
+
+
 func _apply_sound() -> void:
 	AudioServer.set_bus_mute(0, not sound_enabled)
 
@@ -482,6 +517,7 @@ func load_data() -> void:
 	free_coin_day = cfg.get_value("ads", "free_coin_day", "")
 	sessions = cfg.get_value("app", "sessions", 0)
 	sound_enabled = cfg.get_value("settings", "sound", true)
+	lite_mode = cfg.get_value("settings", "lite", _guess_weak_device())
 	language = cfg.get_value("settings", "language", "auto")
 	if not unlocked.has("normal"):
 		unlocked.append("normal")
@@ -519,5 +555,6 @@ func save_data() -> void:
 	cfg.set_value("ads", "free_coin_day", free_coin_day)
 	cfg.set_value("app", "sessions", sessions)
 	cfg.set_value("settings", "sound", sound_enabled)
+	cfg.set_value("settings", "lite", lite_mode)
 	cfg.set_value("settings", "language", language)
 	cfg.save(SAVE_PATH)

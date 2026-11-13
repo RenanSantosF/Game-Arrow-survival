@@ -27,6 +27,7 @@ var _from: Array = THEMES[0]
 var _to: Array = THEMES[0]
 var _blend := 1.0
 var _stars: PackedVector2Array
+var _redraw_left := 0.0
 
 
 class Cloud:
@@ -67,6 +68,15 @@ func _ready() -> void:
 		c.position = Vector2(randf_range(-200, 800), randf_range(120, 1150))
 		c.z_index = 1 if far else 2
 		add_child(c)
+	GameData.lite_changed.connect(func(_on: bool) -> void: _apply_lite())
+	_apply_lite()
+
+
+## Modo leve: sem nuvens (muitos círculos transparentes por cima da tela inteira).
+func _apply_lite() -> void:
+	for c in get_children():
+		(c as CanvasItem).visible = not GameData.lite_mode
+	queue_redraw()
 
 
 func _ridge(base_y: float, amp: float, freq: float, phase: float) -> PackedVector2Array:
@@ -103,7 +113,16 @@ func _process(delta: float) -> void:
 		var night: float = _current()[7].a
 		for c in get_children():
 			(c as CanvasItem).modulate = Color.WHITE.lerp(Color(0.45, 0.4, 0.6), night * 0.8)
-	queue_redraw()
+		queue_redraw()
+		return
+	# O céu só muda devagar (sol pulsando, estrelas piscando): redesenha a cada
+	# 1/15 s em vez de todo quadro; no modo leve fica parado.
+	if GameData.lite_mode:
+		return
+	_redraw_left -= delta
+	if _redraw_left <= 0.0:
+		_redraw_left = 1.0 / 15.0
+		queue_redraw()
 
 
 func _draw() -> void:
@@ -122,15 +141,17 @@ func _draw() -> void:
 	draw_polygon(
 		PackedVector2Array([Vector2(LEFT, 700), Vector2(RIGHT, 700), Vector2(RIGHT, BOTTOM), Vector2(LEFT, BOTTOM)]),
 		PackedColorArray([sky_mid, sky_mid, sky_low, sky_low]))
-	if stars.a > 0.0:
+	var lite := GameData.lite_mode
+	if stars.a > 0.0 and not lite:
 		for i in _stars.size():
 			var tw := 0.5 + 0.5 * sin(_time * 2.0 + i * 1.7)
 			draw_circle(_stars[i], 1.5 + (i % 3) * 0.6, Color(stars, stars.a * (0.4 + 0.6 * tw)))
 	var pulse := 0.5 + 0.5 * sin(_time * 1.5)
-	draw_circle(_sun, 120.0 + pulse * 8.0, Color(sun.lightened(0.2), 0.18))
+	if not lite:
+		draw_circle(_sun, 120.0 + pulse * 8.0, Color(sun.lightened(0.2), 0.18))
 	draw_circle(_sun, 88.0, Color(sun, 0.35))
 	draw_circle(_sun, 64.0, sun)
-	for i in 12:
+	for i in (0 if lite else 12):
 		var a := _time * 0.15 + i * TAU / 12.0
 		draw_line(_sun + Vector2.from_angle(a) * 82.0, _sun + Vector2.from_angle(a) * (110.0 + pulse * 12.0), Color(sun.lightened(0.2), 0.35 * (1.0 - stars.a)), 4.0)
 	draw_colored_polygon(_far, mountain_far)

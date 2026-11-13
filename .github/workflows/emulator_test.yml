@@ -1,0 +1,126 @@
+name: Teste no emulador Android
+
+# Instala o APK num emulador Android 15, joga sozinho por ~3 minutos (toques
+# simulados) e guarda logcat + capturas na pré-release "diagnostico".
+# Serve para achar travamentos. Roda a versão atual e, para comparar, a anterior
+# à correção do áudio (fechava sozinho no primeiro minuto).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ ccr-3511543b-apoqmm ]
+    paths: [ "scripts/**", "ci/**", ".github/workflows/emulator_test.yml", "project.godot" ]
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: 4.7.2
+  PKG: com.renansantos.arrowsurvival
+
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nome: atual
+            ref: ""
+          - nome: antes-da-correcao
+            ref: e4370de28d7b67235c1f040c8daf116f7a45ca6e
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: atual
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref || github.sha }}
+          path: jogo
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK
+        run: |
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "build-tools;36.1.0" "platforms;android-36" "ndk;29.0.14206865" > /dev/null
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot-bin
+            ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-emu-${{ env.GODOT_VERSION }}
+
+      - name: Baixar Godot e templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-bin ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          cd /tmp
+          curl -sSLO https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          unzip -q Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot-bin/godot
+          curl -sSLO https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          unzip -q -j Godot_v${GODOT_VERSION}-stable_export_templates.tpz templates/android_debug.apk templates/android_release.apk templates/android_source.zip templates/version.txt -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+          rm -f *.tpz *.zip
+
+      - name: Godot + configurações
+        run: |
+          sudo cp ~/godot-bin/godot /usr/local/bin/godot && sudo chmod +x /usr/local/bin/godot
+          mkdir -p ~/.config/godot
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_SDK_ROOT" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.7.tres
+
+      - name: APK x86_64 para o emulador (mesmo template/R8 da loja, anúncios de teste)
+        working-directory: jogo
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ github.workspace }}/jogo/keystore/arrow_survival.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: arrowsurvival
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: arrowsurvival
+        run: |
+          sed -i '0,/architectures\/x86_64=false/s//architectures\/x86_64=true/' export_presets.cfg
+          sed -i 's/^custom_features=.*/custom_features="test_ads"/' export_presets.cfg
+          rm -rf android && mkdir -p android/build
+          unzip -q ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip -d android/build
+          echo -n "${GODOT_VERSION}.stable" > android/.build_version
+          touch android/build/.gdignore
+          bash ci/android_play_compat.sh android/build
+          timeout 600 godot --headless --editor --quit || true
+          mkdir -p build
+          godot --headless --export-release "Android" build/emu.apk
+          ls -lh build/
+
+      - name: Habilitar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Jogar no emulador (Android 15)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu angle_indirect -no-boot-anim -camera-back none
+          script: cd jogo && DIAG=diag-${{ matrix.nome }} bash ../atual/ci/emulator_play.sh
+
+      - name: Publicar diagnóstico
+        if: always()
+        working-directory: jogo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          D=diag-${{ matrix.nome }}
+          ls -la $D || exit 0
+          for f in $D/*; do mv "$f" "$D/${{ matrix.nome }}-$(basename $f)"; done
+          gh release view diagnostico > /dev/null 2>&1 || gh release create diagnostico --prerelease --title "Diagnóstico do emulador" --notes "Logcat e capturas do teste automático no emulador." --target "$GITHUB_SHA"
+          gh release upload diagnostico $D/* --clobber

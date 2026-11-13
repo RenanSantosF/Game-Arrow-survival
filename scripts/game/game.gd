@@ -728,11 +728,31 @@ func collect_fruit(f: Fruit) -> void:
 
 # --- Laço principal ---------------------------------------------------------------
 
+var _perf_time := 0.0
+var _perf_frames := 0
+
+## Celular lento: se a média ficar abaixo de 40 quadros por segundo (em janelas de
+## 4 s, depois dos primeiros 5 s de partida), liga o modo leve sozinho.
+func _watch_performance(delta: float) -> void:
+	if GameData.lite_mode or elapsed < 5.0:
+		return
+	_perf_time += delta
+	_perf_frames += 1
+	if _perf_time >= 4.0:
+		var fps := _perf_frames / _perf_time
+		_perf_time = 0.0
+		_perf_frames = 0
+		if fps < 40.0:
+			print("[ARROW] jogo lento (%.0f fps): modo leve ligado" % fps)
+			GameData.set_lite(true)
+
+
 func _process(delta: float) -> void:
 	_update_shake(delta)
 	if state != State.PLAYING:
 		return
 	elapsed += delta
+	_watch_performance(delta)
 	for i in range(_dead_spots.size() - 1, -1, -1):
 		_dead_spots[i][1] -= delta
 		if _dead_spots[i][1] <= 0.0:

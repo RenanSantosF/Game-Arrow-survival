@@ -26,6 +26,8 @@ const MELODY := [
 	[48, 74, 2], [50, 76, 2], [52, 79, 4],
 	[56, 76, 4], [60, 68, 4],
 ]
+## Amostras de folga depois do fim do loop (ver _synthesize).
+const LOOP_PAD := 512
 const MENU_DB := -17.0
 const GAME_DB := -12.0
 
@@ -108,10 +110,15 @@ func _synthesize() -> AudioStreamWAV:
 				_noise(buf, t, 0.12, 0.13, 18.0, rng)
 			_noise(buf, t, 0.03, 0.035, 70.0, rng)
 
+	# Godot 4.7: o mixer do Android lê algumas amostras ALÉM do fim do loop
+	# (interpolação); sem folga ele lia memória fora do buffer e o app fechava
+	# sozinho (SIGSEGV no áudio) logo na primeira volta da música. Depois do fim
+	# do loop vão LOOP_PAD amostras repetindo o começo: a leitura extra fica dentro
+	# do buffer e a emenda continua sem estalo.
 	var data := PackedByteArray()
-	data.resize(total * 2)
-	for i in total:
-		data.encode_s16(i * 2, int(clampf(buf[i], -1.0, 1.0) * 30000.0))
+	data.resize((total + LOOP_PAD) * 2)
+	for i in total + LOOP_PAD:
+		data.encode_s16(i * 2, int(clampf(buf[i % total], -1.0, 1.0) * 30000.0))
 	var stream := AudioStreamWAV.new()
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = MIX_RATE

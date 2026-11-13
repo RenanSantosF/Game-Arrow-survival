@@ -123,7 +123,9 @@ func _build_sounds() -> void:
 func _make(duration: float, generator: Callable) -> AudioStreamWAV:
 	var count := int(duration * MIX_RATE)
 	var data := PackedByteArray()
-	data.resize(count * 2)
+	# + 256 amostras de silêncio no fim: no Godot 4.7 o mixer lê um pouco além do
+	# último sample; a folga evita leitura fora do buffer (travava no Android).
+	data.resize((count + 256) * 2)
 	for i in count:
 		var t := float(i) / MIX_RATE
 		var s := clampf(generator.call(t, i), -1.0, 1.0)

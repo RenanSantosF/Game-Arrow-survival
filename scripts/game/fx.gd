@@ -6,6 +6,8 @@ extends Node2D
 ## Uso em qualquer script: Fx.burst(posição, direção, quantidade, cor)
 
 const MAX_PARTICLES := 420
+## Limite no modo leve (celular fraco): menos partículas e metade das criadas.
+const MAX_PARTICLES_LITE := 120
 const MAX_TEXTS := 12
 
 enum Kind { DROP, SPARK, SMOKE, RING, FLAKE }
@@ -120,7 +122,10 @@ static func text(pos: Vector2, msg: String, color := Color.WHITE, size := 34, li
 
 
 func _add(pos: Vector2, vel: Vector2, life: float, size: float, color: Color, gravity: float, kind: int, drag: float) -> void:
-	if _p.size() >= MAX_PARTICLES:
+	var lite := GameData.lite_mode
+	if lite and kind != Kind.RING and randf() < 0.5:
+		return
+	if _p.size() >= (MAX_PARTICLES_LITE if lite else MAX_PARTICLES):
 		_p.pop_front()
 	var p := Particle.new()
 	p.pos = pos
@@ -167,6 +172,7 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	var aa := not GameData.lite_mode
 	for p in _p:
 		var k := p.life / p.max_life
 		var c := p.color
@@ -176,13 +182,13 @@ func _draw() -> void:
 				draw_circle(p.pos, p.size * (0.5 + 0.5 * k), c)
 			Kind.SPARK:
 				c.a *= k
-				draw_line(p.pos, p.pos - p.vel * 0.03, c, p.size, true)
+				draw_line(p.pos, p.pos - p.vel * 0.03, c, p.size, aa)
 			Kind.SMOKE:
 				c.a *= k
 				draw_circle(p.pos, p.size * (1.6 - k * 0.6), c)
 			Kind.RING:
 				c.a *= k
-				draw_arc(p.pos, p.size * (1.0 - k * 0.7), 0, TAU, 36, c, 6.0 * k + 1.0, true)
+				draw_arc(p.pos, p.size * (1.0 - k * 0.7), 0, TAU, 20 if not aa else 36, c, 6.0 * k + 1.0, aa)
 			Kind.FLAKE:
 				c.a *= k
 				var s := p.size
@@ -191,8 +197,8 @@ func _draw() -> void:
 	for bolt_data in _bolts:
 		var k: float = bolt_data[2] / bolt_data[3]
 		var col: Color = bolt_data[1]
-		draw_polyline(bolt_data[0], Color(col, 0.35 * k), 12.0 * k + 2.0, true)
-		draw_polyline(bolt_data[0], Color(1, 1, 1, k), 3.0, true)
+		draw_polyline(bolt_data[0], Color(col, 0.35 * k), 12.0 * k + 2.0, aa)
+		draw_polyline(bolt_data[0], Color(1, 1, 1, k), 3.0, aa)
 	for t in _texts:
 		var k := t.life / t.max_life
 		var scale_in := minf((1.0 - k) * 8.0, 1.0)
