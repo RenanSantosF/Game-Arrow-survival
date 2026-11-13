@@ -32,20 +32,34 @@ alive "abertura"; shot 01_menu
 tap 360 $((GH - 482)) 6     # JOGAR
 alive "início da partida"; shot 02_partida
 
-END=$((SECONDS + 180)); n=0
-while [ $SECONDS -lt $END ] && [ $CRASH -eq 0 ]; do
-  # puxa o dedo para trás (para baixo/esquerda) e solta: atira para cima/direita
-  X=$((250 + RANDOM % 220)); Y=$((GH / 2 + RANDOM % 200))
-  swipe $X $Y $((X - 80 - RANDOM % 160)) $((Y + 60 + RANDOM % 160)) 300
-  n=$((n + 1))
-  if [ $((n % 12)) -eq 0 ]; then
-    alive "tiro $n ($((180 - END + SECONDS)) s)"
-    # botões do fim de partida/continuar (toques no meio-baixo não atrapalham o jogo)
-    tap 360 $((GH - 300)) 0.3
-  fi
-  [ $((n % 60)) -eq 0 ] && shot "03_jogando_$n"
-done
-alive "fim"; shot 04_fim
+play_for() {  # play_for SEGUNDOS ETIQUETA
+  local END=$((SECONDS + $1)); local n=0
+  while [ $SECONDS -lt $END ] && [ $CRASH -eq 0 ]; do
+    # puxa o dedo para trás (para baixo/esquerda) e solta: atira para cima/direita
+    X=$((250 + RANDOM % 220)); Y=$((GH / 2 + RANDOM % 200))
+    swipe $X $Y $((X - 80 - RANDOM % 160)) $((Y + 60 + RANDOM % 160)) 300
+    n=$((n + 1))
+    if [ $((n % 12)) -eq 0 ]; then
+      alive "$2 tiro $n"
+      # botões do fim de partida/continuar (toques no meio-baixo não atrapalham o jogo)
+      tap 360 $((GH - 300)) 0.3
+    fi
+    [ $((n % 60)) -eq 0 ] && shot "03_$2_$n"
+  done
+}
+
+play_for 120 parte1
+alive "fim da parte 1"; shot 04_fim_parte1
+
+# Fecha e abre de novo: o modo leve (ligado sozinho no emulador lento) agora
+# começa já com a imagem em 720p.
+adb shell am force-stop "$PKG"; sleep 2
+adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 > /dev/null
+sleep 45
+alive "reabertura"; shot 05_menu_reaberto
+tap 360 $((GH - 482)) 6
+play_for 90 parte2
+alive "fim"; shot 06_fim
 
 adb logcat -d > "$D/logcat.txt"
 echo "=== trechos importantes do logcat ==="

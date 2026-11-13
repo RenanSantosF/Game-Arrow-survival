@@ -470,18 +470,21 @@ func set_lite(enabled: bool) -> void:
 	if enabled == lite_mode:
 		return
 	lite_mode = enabled
-	_apply_lite()
+	_apply_lite(false)
 	save_data()
 	lite_changed.emit(enabled)
 
 
-func _apply_lite() -> void:
+## Efeitos leves e 30 fps valem na hora. A resolução 720p só é aplicada ao abrir o
+## jogo: trocar content_scale_mode com o jogo rodando derrubava o renderizador no
+## Android (SIGSEGV na GLThread, visto no emulador).
+func _apply_lite(at_startup := true) -> void:
 	if not OS.has_feature("mobile"):
 		return
-	var root := get_tree().root
-	# Leve: desenha na resolução do jogo (720 de largura) e amplia; normal: na da tela.
-	root.content_scale_mode = Window.CONTENT_SCALE_MODE_VIEWPORT if lite_mode else Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	Engine.max_fps = 30 if lite_mode else 0
+	if at_startup and lite_mode:
+		# Leve: desenha na resolução do jogo (720 de largura) e amplia.
+		get_tree().root.content_scale_mode = Window.CONTENT_SCALE_MODE_VIEWPORT
 
 
 ## Primeira abertura (sem save): aparelho com até 3 GB de RAM ou até 4 núcleos

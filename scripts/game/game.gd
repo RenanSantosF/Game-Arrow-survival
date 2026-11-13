@@ -732,7 +732,8 @@ var _perf_time := 0.0
 var _perf_frames := 0
 
 ## Celular lento: se a média ficar abaixo de 40 quadros por segundo (em janelas de
-## 4 s, depois dos primeiros 5 s de partida), liga o modo leve sozinho.
+## 4 s, depois dos primeiros 5 s de partida), liga o modo leve sozinho (efeitos
+## e 30 fps na hora; a imagem em 720p a partir da próxima abertura).
 func _watch_performance(delta: float) -> void:
 	if GameData.lite_mode or elapsed < 5.0:
 		return

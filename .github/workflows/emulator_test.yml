@@ -2,8 +2,8 @@ name: Teste no emulador Android
 
 # Instala o APK num emulador Android 15, joga sozinho por ~3 minutos (toques
 # simulados) e guarda logcat + capturas na pré-release "diagnostico".
-# Serve para achar travamentos. Roda a versão atual e, para comparar, a anterior
-# à correção do áudio (fechava sozinho no primeiro minuto).
+# Serve para achar travamentos. Para testar uma versão antiga, acrescente na
+# matriz uma entrada com o commit em "ref".
 
 on:
   workflow_dispatch:
@@ -28,8 +28,6 @@ jobs:
         include:
           - nome: atual
             ref: ""
-          - nome: antes-da-correcao
-            ref: e4370de28d7b67235c1f040c8daf116f7a45ca6e
     steps:
       - uses: actions/checkout@v4
         with:
