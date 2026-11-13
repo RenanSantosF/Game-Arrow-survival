@@ -1,4 +1,4 @@
-# Notas da versão 1.0.1
+# Notas da versão 1.0.2
 
 ```
 <pt-BR>
