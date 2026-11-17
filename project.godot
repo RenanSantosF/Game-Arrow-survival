@@ -15,7 +15,7 @@ general/android/app_id="ca-app-pub-4311255826061303~9874345303"
 [application]
 
 config/name="Arrow Survival"
-config/version="0.2.0"
+config/version="1.0.3"
 config/description="Sobrevivência infinita com arco e flecha e stickmen."
 run/main_scene="res://scenes/menu.tscn"
 config/quit_on_go_back=false
