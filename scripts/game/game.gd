@@ -14,8 +14,8 @@ const ENEMY_AREA := Rect2(455, 430, 185, 560)
 const MIN_ENEMY_DISTANCE := 165.0
 const MAX_ARROWS := 45
 const EXPLOSION_RADIUS := 125.0
-const HEAL_AMOUNT := 40.0
-const STAMINA_AMOUNT := 60.0
+const HEAL_AMOUNT := 30.0
+const STAMINA_AMOUNT := 50.0
 const COMBO_WINDOW := 2.5
 
 const ENEMY_STYLES := [
@@ -54,7 +54,7 @@ var _hud: GameHud
 var _overlay: CanvasLayer
 var _arrows: Array = []
 var _spawn_timer := 1.0
-var _fruit_timer := 6.0
+var _fruit_timer := 9.0
 var _combo := 0
 var _combo_timer := 0.0
 var _shake := 0.0
@@ -122,8 +122,8 @@ func _spawn_player(is_revive: bool) -> void:
 	player.damaged.connect(_on_player_damaged)
 	player.died.connect(_on_player_died)
 	if is_revive:
-		player.hp = player.max_hp * 0.6
-		player.invulnerable_time = 2.5
+		player.hp = player.max_hp * 0.5
+		player.invulnerable_time = 2.0
 	_hud.hp_bar.set_value(player.hp, player.max_hp)
 	_hud.stamina_bar.set_value(player.stamina, PlayerArcher.MAX_STAMINA)
 	_hud.hp_bar.snap()
@@ -210,17 +210,18 @@ func explode(point: Vector2, arrow: Arrow, collider: Object) -> void:
 
 # --- Inimigos ------------------------------------------------------------------
 
+## A dificuldade sobe rápido: partidas curtas e intensas (1 a 2 minutos).
 func difficulty_level() -> float:
-	return kills + elapsed / 18.0
+	return kills * 1.5 + elapsed / 7.0
 
 
 func _max_enemies() -> int:
 	var lv := difficulty_level()
-	if lv < 4.0:
+	if lv < 3.0:
 		return 1
-	if lv < 12.0:
+	if lv < 9.0:
 		return 2
-	if lv < 26.0:
+	if lv < 18.0:
 		return 3
 	return 4
 
@@ -228,7 +229,7 @@ func _max_enemies() -> int:
 func _spawn_enemy() -> void:
 	var spot := _find_enemy_spot()
 	var lv := difficulty_level()
-	var k := clampf(lv / 45.0, 0.0, 1.0)
+	var k := clampf(lv / 28.0, 0.0, 1.0)
 
 	var platform := FloatingPlatform.new()
 	platform.grass_color = Color(0.4, 0.62, 0.25).lerp(Color(0.55, 0.5, 0.3), randf())
@@ -237,18 +238,18 @@ func _spawn_enemy() -> void:
 
 	var e := EnemyArcher.new()
 	var style: Dictionary = ENEMY_STYLES.pick_random()
-	e.max_hp = 40.0 + minf(lv * 0.9, 45.0)
-	e.aim_time = lerpf(2.3, 0.95, k) * randf_range(0.9, 1.1)
-	e.shot_cooldown = lerpf(2.6, 1.1, k)
-	e.aim_error = lerpf(110.0, 22.0, k)
-	e.arrow_damage = 15.0 + minf(lv * 0.25, 11.0)
+	e.max_hp = 40.0 + minf(lv * 1.2, 50.0)
+	e.aim_time = lerpf(1.7, 0.75, k) * randf_range(0.9, 1.1)
+	e.shot_cooldown = lerpf(2.0, 0.85, k)
+	e.aim_error = lerpf(75.0, 12.0, k)
+	e.arrow_damage = 18.0 + minf(lv * 0.45, 14.0)
 	e.score_value = 10
-	if lv > 18.0 and randf() < 0.25:
+	if lv > 12.0 and randf() < 0.3:
 		style = ELITE_STYLE
 		e.max_hp *= 1.45
 		e.head_multiplier = 2.0
 		e.score_value = 25
-	elif lv > 8.0 and randf() < 0.35:
+	elif lv > 5.0 and randf() < 0.4:
 		style = HUNTER_STYLES.pick_random()
 		e.aim_time *= 0.85
 		e.aim_error *= 0.8
@@ -313,9 +314,9 @@ func _on_enemy_died(s: Stickman, zone: String) -> void:
 	add_shake(6.0)
 	if is_instance_valid(e.platform):
 		(e.platform as FloatingPlatform).crumble(0.6)
-	_spawn_timer = maxf(_spawn_timer, 1.2)
+	_spawn_timer = maxf(_spawn_timer, 0.8)
 
-	for def in GameData.check_unlocks(kills):
+	for def in GameData.check_unlocks():
 		_new_arrows.append(def)
 		_hud.show_banner("NOVA FLECHA: %s!" % def["name"], Color(0.6, 1, 0.5), 2.5)
 		_hud.rebuild_arrow_bar()
@@ -372,12 +373,12 @@ func _process(delta: float) -> void:
 	_spawn_timer -= delta
 	if _spawn_timer <= 0.0 and enemies.size() < _max_enemies():
 		_spawn_enemy()
-		_spawn_timer = 1.4
+		_spawn_timer = 1.0
 
 	_fruit_timer -= delta
 	if _fruit_timer <= 0.0:
 		_spawn_fruit()
-		_fruit_timer = randf_range(7.0, 12.0)
+		_fruit_timer = randf_range(10.0, 15.0)
 
 	if is_instance_valid(player):
 		_hud.hp_bar.set_value(player.hp, player.max_hp)
@@ -416,7 +417,8 @@ func _pause() -> void:
 		get_tree().paused = false)
 	panel.menu_pressed.connect(func() -> void:
 		_finish_run()
-		UiKit.fade_to_scene(self, "res://scenes/menu.tscn"))
+		Ads.maybe_show_interstitial(func() -> void:
+			UiKit.fade_to_scene(self, "res://scenes/menu.tscn")))
 
 
 func _finish_run() -> bool:

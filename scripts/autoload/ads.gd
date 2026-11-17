@@ -1,10 +1,8 @@
 extends Node
-## Anúncios (Google AdMob) com regras para não incomodar o jogador:
+## Anúncios (Google AdMob):
 ##
-## - Nunca há anúncio ao abrir o app, e nenhum anúncio obrigatório na 1ª sessão
-##   (a primeira vez que o jogo é aberto depois de instalado).
-## - Intersticial só entre partidas (ao tocar em "Jogar de novo" ou "Menu"),
-##   no máximo a cada INTERSTITIAL_EVERY partidas e com intervalo mínimo de tempo.
+## - Nunca há anúncio ao abrir o app.
+## - Intersticial ao fim de TODA partida (ao tocar em "Jogar de novo" ou "Menu").
 ## - Anúncio premiado é sempre opcional: o jogador escolhe assistir para continuar.
 ## - Sem banners durante o jogo.
 ##
@@ -17,9 +15,9 @@ signal ad_closed
 const INTERSTITIAL_ID := "ca-app-pub-3940256099942544/1033173712"
 const REWARDED_ID := "ca-app-pub-3940256099942544/5224354917"
 
-const INTERSTITIAL_EVERY := 3          ## Partidas entre intersticiais.
-const MIN_SECONDS_BETWEEN := 150.0     ## Intervalo mínimo entre intersticiais.
-const MIN_GAME_SECONDS := 25.0         ## Partidas muito curtas não contam.
+const INTERSTITIAL_EVERY := 1          ## Partidas entre intersticiais (1 = toda partida).
+const MIN_SECONDS_BETWEEN := 0.0       ## Intervalo mínimo entre intersticiais.
+const MIN_GAME_SECONDS := 0.0          ## Toda partida conta.
 
 var _enabled := false
 var _interstitial: InterstitialAd = null
@@ -36,7 +34,7 @@ func _ready() -> void:
 		return
 	MobileAds.initialize()
 	# Carrega com um pequeno atraso para não pesar na abertura do jogo.
-	get_tree().create_timer(4.0).timeout.connect(_load_all)
+	get_tree().create_timer(1.0).timeout.connect(_load_all)
 
 
 func _load_all() -> void:
@@ -60,7 +58,6 @@ func maybe_show_interstitial(done: Callable) -> void:
 	var allowed := (
 		_enabled
 		and _interstitial != null
-		and GameData.sessions >= 2
 		and _games_since_ad >= INTERSTITIAL_EVERY
 		and now - _last_ad_time >= MIN_SECONDS_BETWEEN
 	)
@@ -91,7 +88,6 @@ func show_rewarded() -> void:
 		return
 	_reward_pending = false
 	_last_ad_time = Time.get_ticks_msec() / 1000.0
-	_games_since_ad = 0
 	var ad := _rewarded
 	_rewarded = null
 	var callback := FullScreenContentCallback.new()
@@ -130,7 +126,7 @@ func _load_interstitial() -> void:
 	cb.on_ad_loaded = func(ad: InterstitialAd) -> void:
 		_interstitial = ad
 	cb.on_ad_failed_to_load = func(_error: LoadAdError) -> void:
-		get_tree().create_timer(60.0).timeout.connect(_load_interstitial)
+		get_tree().create_timer(20.0).timeout.connect(_load_interstitial)
 	InterstitialAdLoader.new().load(INTERSTITIAL_ID, AdRequest.new(), cb)
 
 

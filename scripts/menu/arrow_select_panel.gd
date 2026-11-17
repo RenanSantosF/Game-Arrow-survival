@@ -1,7 +1,7 @@
 class_name ArrowSelectPanel
 extends Control
 ## Tela de escolha de flechas. Flechas bloqueadas mostram quantos abates
-## seguidos (sem morrer) são necessários para desbloquear.
+## acumulados (somando as partidas) são necessários para desbloquear.
 
 signal closed
 
@@ -22,7 +22,7 @@ func _ready() -> void:
 	panel.add_child(box)
 
 	box.add_child(UiKit.make_label("ESCOLHA SUA FLECHA", 44, UiKit.GOLD, 10))
-	box.add_child(UiKit.make_label("Desbloqueie novas flechas abatendo\ninimigos seguidos, sem morrer!", 22, Color(0.85, 0.9, 1), 5))
+	box.add_child(UiKit.make_label("Desbloqueie novas flechas somando\nabates em todas as partidas! (%d abates)" % GameData.total_kills, 22, Color(0.85, 0.9, 1), 5))
 
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -67,7 +67,7 @@ func _make_card(def: Dictionary) -> Button:
 	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(icon)
 	v.add_child(UiKit.make_label(def["name"], 30, Color.WHITE if unlocked else Color(0.6, 0.6, 0.65), 6))
-	var desc := UiKit.make_label(def["desc"] if unlocked else "Faça %d abates seguidos" % def["unlock"], 18, Color(0.8, 0.85, 0.95) if unlocked else Color(0.95, 0.75, 0.4), 4)
+	var desc := UiKit.make_label(def["desc"] if unlocked else "Total de %d abates" % def["unlock"], 18, Color(0.8, 0.85, 0.95) if unlocked else Color(0.95, 0.75, 0.4), 4)
 	v.add_child(desc)
 	var status := UiKit.make_label("", 20, UiKit.GOLD, 5)
 	v.add_child(status)

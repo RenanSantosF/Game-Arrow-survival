@@ -14,7 +14,9 @@ const ZONE_MULTIPLIER := {
 	"leg": 0.7,
 }
 
-## Flechas disponíveis. "unlock" = abates seguidos (sem morrer) para desbloquear.
+## Flechas disponíveis. "unlock" = total de abates acumulados (somando todas as
+## partidas) para desbloquear. Assim, mesmo com partidas curtas e difíceis,
+## todo jogador vai progredindo a cada partida.
 const ARROWS := [
 	{
 		"id": "normal", "name": "Comum", "unlock": 0,
@@ -24,35 +26,35 @@ const ARROWS := [
 		"trail": Color(1, 1, 1, 0.0),
 	},
 	{
-		"id": "poison", "name": "Veneno", "unlock": 10,
+		"id": "poison", "name": "Veneno", "unlock": 15,
 		"desc": "Envenena o alvo:\ndano contínuo por 4s.",
 		"damage": 18.0, "stamina": 14.0,
 		"shaft": Color(0.2, 0.35, 0.15), "head": Color(0.45, 0.95, 0.25), "fletch": Color(0.6, 1.0, 0.4),
 		"trail": Color(0.45, 0.95, 0.25, 0.9),
 	},
 	{
-		"id": "fire", "name": "Fogo", "unlock": 20,
+		"id": "fire", "name": "Fogo", "unlock": 40,
 		"desc": "Incendeia o alvo:\nqueima por 3s.",
 		"damage": 22.0, "stamina": 16.0,
 		"shaft": Color(0.35, 0.15, 0.08), "head": Color(1.0, 0.55, 0.1), "fletch": Color(1.0, 0.85, 0.2),
 		"trail": Color(1.0, 0.5, 0.1, 0.95),
 	},
 	{
-		"id": "ice", "name": "Gelo", "unlock": 35,
+		"id": "ice", "name": "Gelo", "unlock": 80,
 		"desc": "Congela o inimigo:\nele para de atirar por 3s.",
 		"damage": 18.0, "stamina": 16.0,
 		"shaft": Color(0.6, 0.75, 0.9), "head": Color(0.6, 0.95, 1.0), "fletch": Color(0.85, 0.97, 1.0),
 		"trail": Color(0.7, 0.95, 1.0, 0.9),
 	},
 	{
-		"id": "explosive", "name": "Explosiva", "unlock": 50,
+		"id": "explosive", "name": "Explosiva", "unlock": 140,
 		"desc": "Explode no impacto e\natinge quem estiver perto.",
 		"damage": 30.0, "stamina": 24.0,
 		"shaft": Color(0.25, 0.25, 0.25), "head": Color(0.95, 0.2, 0.15), "fletch": Color(1.0, 0.75, 0.1),
 		"trail": Color(1.0, 0.8, 0.3, 0.8),
 	},
 	{
-		"id": "triple", "name": "Tripla", "unlock": 75,
+		"id": "triple", "name": "Tripla", "unlock": 220,
 		"desc": "Dispara três flechas\nde uma vez.",
 		"damage": 20.0, "stamina": 26.0,
 		"shaft": Color(0.5, 0.3, 0.6), "head": Color(0.85, 0.7, 1.0), "fletch": Color(0.95, 0.85, 1.0),
@@ -94,11 +96,12 @@ func select_arrow(id: String) -> void:
 		save_data()
 
 
-## Desbloqueia as flechas cuja meta foi atingida. Retorna as recém-desbloqueadas.
-func check_unlocks(kills_in_a_row: int) -> Array:
+## Desbloqueia as flechas cuja meta (abates totais) foi atingida.
+## Retorna as recém-desbloqueadas.
+func check_unlocks() -> Array:
 	var new_ones: Array = []
 	for a in ARROWS:
-		if kills_in_a_row >= a["unlock"] and not unlocked.has(a["id"]):
+		if total_kills >= a["unlock"] and not unlocked.has(a["id"]):
 			unlocked.append(a["id"])
 			new_ones.append(a)
 	if not new_ones.is_empty():
@@ -113,6 +116,25 @@ func start_game() -> void:
 
 func add_kill() -> void:
 	total_kills += 1
+
+
+## Próxima flecha ainda bloqueada (vazio se todas já foram liberadas).
+func next_unlock() -> Dictionary:
+	for a in ARROWS:
+		if not unlocked.has(a["id"]):
+			return a
+	return {}
+
+
+## Fecha o app. No Android, get_tree().quit() no Godot 4.3 derruba o app
+## durante o desligamento (o sistema mostra "o app parou"), então salvamos e
+## encerramos o processo direto, o que fecha o jogo sem mensagem de erro.
+func quit_game(tree: SceneTree) -> void:
+	save_data()
+	if OS.get_name() == "Android":
+		OS.kill(OS.get_process_id())
+	else:
+		tree.quit()
 
 
 ## Salva o resultado da partida. Retorna true se for um novo recorde.
@@ -150,6 +172,10 @@ func load_data() -> void:
 	sound_enabled = cfg.get_value("settings", "sound", true)
 	if not unlocked.has("normal"):
 		unlocked.append("normal")
+	# Saves antigos: libera o que já foi alcançado pelo total de abates.
+	for a in ARROWS:
+		if total_kills >= a["unlock"] and not unlocked.has(a["id"]):
+			unlocked.append(a["id"])
 	if not is_unlocked(selected_arrow):
 		selected_arrow = "normal"
 

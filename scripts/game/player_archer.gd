@@ -33,7 +33,7 @@ var _tired_msg_cooldown := 0.0
 
 func _init() -> void:
 	hit_layer = Arrow.LAYER_PLAYER
-	max_hp = 150.0
+	max_hp = 100.0
 	head_multiplier = 2.5
 	body_color = Color(0.12, 0.35, 0.85)
 	accessory = Accessory.BANDANA

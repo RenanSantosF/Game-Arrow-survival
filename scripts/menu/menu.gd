@@ -56,7 +56,7 @@ func _build_ui() -> void:
 	UiKit.anchor(logo, Control.PRESET_CENTER_TOP, -360, 70, 360, 330)
 	root.add_child(logo)
 
-	var rec_text := "Recorde: %d   •   Maior sequência: %d" % [GameData.best_score, GameData.best_kills]
+	var rec_text := "Recorde: %d   •   Mais abates: %d" % [GameData.best_score, GameData.best_kills]
 	var rec := UiKit.make_label(rec_text, 26, Color(1, 0.92, 0.7), 7)
 	UiKit.anchor(rec, Control.PRESET_CENTER_TOP, -340, 340, 340, 380)
 	root.add_child(rec)
@@ -113,7 +113,7 @@ func _on_arrows() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
-		get_tree().quit()
+		GameData.quit_game(get_tree())
 
 
 ## Duelo decorativo: os dois arqueiros trocam tiros (sem dano), usando a
