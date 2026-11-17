@@ -281,7 +281,7 @@ import PackageDescription
 
 let package = Package(
     name: "PoingGodotAdMobDeps",
-    platforms: [.iOS(.v14)],
+    platforms: [.iOS(.v15)],
     products: [
         .library(
             name: "PoingGodotAdMobDeps",
@@ -294,7 +294,10 @@ let package = Package(
             name: "PoingGodotAdMobDeps",
             dependencies: [
 %s            ],
-            path: "PoingGodotAdMobDeps"
+            path: "PoingGodotAdMobDeps",
+            linkerSettings: [
+                .linkedFramework("JavaScriptCore")
+            ]
         )
     ]
 )
