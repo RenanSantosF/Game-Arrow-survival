@@ -429,6 +429,7 @@ func _finish_run() -> bool:
 func _show_game_over() -> void:
 	state = State.OVER
 	var is_record := _finish_run() and score > 0
+	Telemetry.level("Partida", is_record, score)
 	var panel := GameOverPanel.new()
 	panel.score = score
 	panel.kills = kills
