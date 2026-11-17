@@ -1,10 +1,8 @@
 extends Node
 ## Anúncios (Google AdMob) com regras para não incomodar o jogador:
 ##
-## - Nunca há anúncio ao abrir o app, e nenhum anúncio obrigatório na 1ª sessão
-##   (a primeira vez que o jogo é aberto depois de instalado).
-## - Intersticial só entre partidas (ao tocar em "Jogar de novo" ou "Menu"),
-##   no máximo a cada INTERSTITIAL_EVERY partidas e com intervalo mínimo de tempo.
+## - Nunca há anúncio ao abrir o app.
+## - Intersticial ao fim de TODA partida (ao tocar em "Jogar de novo" ou "Menu").
 ## - Anúncio premiado é sempre opcional: o jogador escolhe assistir para ganhar algo
 ##   (continuar de onde parou, dobrar as moedas da partida, moedas grátis no Arsenal).
 ## - Sem banners durante o jogo.
@@ -22,8 +20,8 @@ const TEST_INTERSTITIAL_ID := "ca-app-pub-3940256099942544/1033173712"
 const TEST_REWARDED_ID := "ca-app-pub-3940256099942544/5224354917"
 
 const INTERSTITIAL_EVERY := 1          ## Partidas entre intersticiais (1 = toda partida).
-const MIN_SECONDS_BETWEEN := 60.0      ## Intervalo mínimo entre intersticiais.
-const MIN_GAME_SECONDS := 25.0         ## Partidas muito curtas não contam.
+const MIN_SECONDS_BETWEEN := 0.0       ## Sem intervalo mínimo: anúncio em toda partida.
+const MIN_GAME_SECONDS := 0.0          ## Toda partida conta, mesmo curta.
 
 var _enabled := false
 var _interstitial: InterstitialAd = null
@@ -93,7 +91,6 @@ func maybe_show_interstitial(done: Callable) -> void:
 	var allowed := (
 		_enabled
 		and _interstitial != null
-		and GameData.sessions >= 2
 		and _games_since_ad >= INTERSTITIAL_EVERY
 		and now - _last_ad_time >= MIN_SECONDS_BETWEEN
 	)

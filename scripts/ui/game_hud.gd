@@ -98,7 +98,7 @@ func _ready() -> void:
 	_score_label.pivot_offset = Vector2(120, 40)
 	_root.add_child(_score_label)
 
-	_kills_label = UiKit.make_label(tr("Abates seguidos: 0"), 24, Color(1, 0.9, 0.7), 6)
+	_kills_label = UiKit.make_label(tr("Abates: 0"), 24, Color(1, 0.9, 0.7), 6)
 	UiKit.anchor(_kills_label, Control.PRESET_CENTER_TOP, -200, 180, 200, 214)
 	_root.add_child(_kills_label)
 
@@ -226,18 +226,18 @@ func set_score(score: int, kills: int) -> void:
 	if score > GameData.best_score and GameData.best_score > 0:
 		_best_label.text = tr("NOVO RECORDE!")
 		_best_label.add_theme_color_override("font_color", UiKit.GOLD)
-	var next := _next_unlock(kills)
+	var next := GameData.next_unlock()
 	if next.is_empty():
 		_next_label.text = ""
 	else:
-		_next_label.text = tr("Próxima flecha: %s em %d abates") % [tr(next["name"]), int(next["unlock"]) - kills]
+		_next_label.text = tr("Próxima flecha: %s em %d abates") % [tr(next["name"]), GameData.kills_to_unlock(next)]
 
 
 func _refresh_kills_label() -> void:
 	if _wave_left > 0:
 		_kills_label.text = tr("Abates: %d   •   Restam: %d") % [_kills, _wave_left]
 	else:
-		_kills_label.text = tr("Abates seguidos: %d") % _kills
+		_kills_label.text = tr("Abates: %d") % _kills
 
 
 func set_coins(run_coins: int) -> void:
@@ -272,13 +272,6 @@ func hide_boss() -> void:
 	tw.tween_interval(0.8)
 	tw.tween_property(_boss_box, "modulate:a", 0.0, 0.5)
 	tw.tween_callback(func() -> void: _boss_box.visible = false)
-
-
-func _next_unlock(kills: int) -> Dictionary:
-	for def in GameData.ARROWS:
-		if not GameData.is_unlocked(def["id"]) and def["unlock"] > kills:
-			return def
-	return {}
 
 
 func flash_damage() -> void:

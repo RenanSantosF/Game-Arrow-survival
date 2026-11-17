@@ -923,7 +923,7 @@ func _refresh_detail() -> void:
 	var dmg := GameData.arrow_damage(def)
 	var st := GameData.arrow_stamina(def)
 	if not unlocked:
-		_detail_stats.text = tr("Dano %d   •   Estamina %d\nou libere com %d abates seguidos") % [int(dmg), int(round(st)), def["unlock"]]
+		_detail_stats.text = tr("Dano %d   •   Estamina %d\nou libere com %d abates no total") % [int(dmg), int(round(st)), GameData.arrow_kill_goal(def)]
 		_detail_stats.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5))
 	elif lv >= GameData.ARROW_MAX_LEVEL:
 		_detail_stats.text = tr("Dano %d   •   Estamina %d\nMESTRE: +10%% de dano extra e brilho dourado!") % [int(dmg), int(round(st))]

@@ -1,13 +1,13 @@
-# Notas da versão 1.0.2
+# Notas da versão 1.0.3
 
 ```
 <pt-BR>
-Nova abertura animada FT. Jogo atualizado para os Androids mais novos: mais estável e com melhor desempenho. Agora funciona em tablets e celulares dobráveis, em pé ou deitado, sem cortar a tela. Correções e melhorias gerais.
+Batalhas mais rápidas e desafiadoras: os inimigos miram melhor e atacam mais cedo. Agora as flechas são liberadas somando os abates de todas as partidas, e você ganha mais moedas por onda. Corrigido o erro ao fechar o jogo pelo botão voltar.
 </pt-BR>
 <en-US>
-New animated FT intro. Updated for the latest Android versions: more stable and better performance. Now works on tablets and foldables, in portrait or landscape, without cropping the screen. General fixes and improvements.
+Faster, tougher battles: enemies aim better and attack sooner. Arrows now unlock by adding up kills from all your games, and you earn more coins per wave. Fixed the error when closing the game with the back button.
 </en-US>
 <es-419>
-Nueva introducción animada FT. Actualizado para las versiones más recientes de Android: más estable y con mejor rendimiento. Ahora funciona en tablets y celulares plegables, en vertical u horizontal, sin recortar la pantalla. Correcciones y mejoras generales.
+Batallas más rápidas y desafiantes: los enemigos apuntan mejor y atacan antes. Ahora las flechas se desbloquean sumando las bajas de todas las partidas y ganas más monedas por oleada. Corregido el error al cerrar el juego con el botón atrás.
 </es-419>
 ```

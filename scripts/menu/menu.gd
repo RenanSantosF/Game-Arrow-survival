@@ -151,7 +151,7 @@ func _open_arsenal(tab: Arsenal.Tab) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
-		get_tree().quit()
+		GameData.quit_game(get_tree())
 
 
 ## Duelo decorativo: os dois arqueiros trocam tiros (sem dano), usando a

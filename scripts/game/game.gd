@@ -24,8 +24,8 @@ const BOX_MARGIN := 22.0
 const DEAD_SPOT_TIME := 1.6
 const MAX_ARROWS := 45
 const EXPLOSION_RADIUS := 125.0
-const HEAL_AMOUNT := 40.0
-const STAMINA_AMOUNT := 60.0
+const HEAL_AMOUNT := 30.0
+const STAMINA_AMOUNT := 50.0
 const COMBO_WINDOW := 2.5
 const WAVES_PER_ERA := 5
 ## Estamina recuperada ao acertar um inimigo, por região.
@@ -399,24 +399,25 @@ func is_boss_wave() -> bool:
 	return _wave_in_era() == WAVES_PER_ERA
 
 
-## 0..1: quão difícil está (precisão, velocidade). Chega ao máximo na onda 29.
+## 0..1: quão difícil está (precisão, velocidade). Chega ao máximo na onda 13,
+## para as partidas serem curtas e intensas.
 func _skill() -> float:
-	return clampf((wave - 1) / 28.0, 0.0, 1.0)
+	return clampf((wave - 1) / 12.0, 0.0, 1.0)
 
 
-## Depois do máximo, a vida e o dano continuam subindo devagar (infinito).
+## Depois do máximo, a vida e o dano continuam subindo (infinito).
 func _overflow() -> float:
-	return 1.0 + maxf(wave - 29, 0) * 0.03
+	return 1.0 + maxf(wave - 13, 0) * 0.06
 
 
 func _max_enemies() -> int:
 	if is_boss_wave():
 		return 2
-	if wave <= 2:
+	if wave <= 1:
 		return 1
-	if wave <= 6:
+	if wave <= 4:
 		return 2
-	if wave <= 14:
+	if wave <= 9:
 		return 3
 	return 4
 
@@ -430,7 +431,7 @@ func _start_wave(n: int) -> void:
 		for i in mini(1 + era_index(), 3):
 			_wave_queue.append("normal")
 	else:
-		for i in mini(3 + int(n * 0.6), 12):
+		for i in mini(3 + int(n * 0.8), 12):
 			_wave_queue.append("normal")
 		if _wave_in_era() == 3:
 			_wave_queue.append("captain")
@@ -454,11 +455,11 @@ func _start_wave(n: int) -> void:
 func _complete_wave() -> void:
 	_wave_active = false
 	var boss_wave := is_boss_wave()
-	var bonus := 2 + wave / 2 + (10 + era_index() * 5 if boss_wave else 0)
+	var bonus := 3 + wave + (12 + era_index() * 6 if boss_wave else 0)
 	run_coins += bonus
 	_hud.set_coins(run_coins)
 	if is_instance_valid(player) and player.alive:
-		var heal := player.max_hp * (0.35 if boss_wave else 0.12)
+		var heal := player.max_hp * (0.25 if boss_wave else 0.08)
 		player.hp = minf(player.hp + heal, player.max_hp)
 		player.stamina = minf(player.stamina + 30.0, player.max_stamina)
 		Fx.text(player.to_global(Vector2(0, -230)), tr("+%d VIDA") % int(heal), Color(1, 0.45, 0.45), 30, 1.2)
@@ -514,13 +515,13 @@ func _spawn_enemy(kind: String) -> bool:
 
 	var e := EnemyArcher.new()
 	e.rank = kind
-	e.max_hp = (48.0 + minf(wave * 2.6, 84.0)) * over
-	e.aim_time = lerpf(2.4, 1.0, k) * randf_range(0.9, 1.1)
-	e.shot_cooldown = lerpf(2.8, 1.2, k)
-	e.aim_error = lerpf(115.0, 26.0, k)
-	e.arrow_damage = (10.0 + minf(wave * 0.35, 9.0)) * minf(over, 1.6)
+	e.max_hp = (48.0 + minf(wave * 4.0, 90.0)) * over
+	e.aim_time = lerpf(1.9, 0.8, k) * randf_range(0.9, 1.1)
+	e.shot_cooldown = lerpf(2.2, 0.95, k)
+	e.aim_error = lerpf(85.0, 16.0, k)
+	e.arrow_damage = (12.0 + minf(wave * 0.8, 12.0)) * minf(over, 1.8)
 	e.score_value = 10 + era_index() * 5
-	e.coin_value = 1 + era_index() / 2
+	e.coin_value = 2 + era_index() / 2
 	var style: Dictionary = (era["styles"] as Array).pick_random()
 	var shield_hp := 0.0
 	if randf() < float(era["shield_chance"]):
@@ -676,7 +677,7 @@ func _on_enemy_died(s: Stickman, zone: String) -> void:
 		(e.platform as FloatingPlatform).crumble(0.6)
 	_spawn_timer = maxf(_spawn_timer, 1.0)
 
-	for def in GameData.check_unlocks(kills):
+	for def in GameData.check_unlocks():
 		_new_arrows.append(def)
 		if GameData.is_equipped(def["id"]):
 			_hud.show_banner(tr("NOVA FLECHA: %s!") % tr(def["name"]), Color(0.6, 1, 0.5), 2.5)
@@ -783,7 +784,7 @@ func _process(delta: float) -> void:
 	_fruit_timer -= delta
 	if _fruit_timer <= 0.0:
 		_spawn_fruit()
-		_fruit_timer = randf_range(7.0, 12.0)
+		_fruit_timer = randf_range(10.0, 15.0)
 
 	if is_instance_valid(player):
 		_hud.hp_bar.set_value(player.hp, player.max_hp)
@@ -822,7 +823,7 @@ func _pause() -> void:
 		get_tree().paused = false)
 	panel.menu_pressed.connect(func() -> void:
 		_finish_run()
-		UiKit.fade_to_scene(self, "res://scenes/menu.tscn"))
+		Ads.maybe_show_interstitial(func() -> void: UiKit.fade_to_scene(self, "res://scenes/menu.tscn")))
 
 
 func _finish_run() -> bool:

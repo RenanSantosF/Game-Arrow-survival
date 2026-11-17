@@ -17,7 +17,8 @@ const ZONE_MULTIPLIER := {
 	"leg": 0.7,
 }
 
-## Flechas disponíveis. "unlock" = abates seguidos (sem morrer) para desbloquear.
+## Flechas disponíveis. "unlock" define a ordem/preço; a flecha libera ao somar
+## arrow_kill_goal() abates no TOTAL (todas as partidas juntas).
 ## "stamina" = custo de um tiro com o arco TOTALMENTE puxado; tiros mais fracos
 ## gastam menos (veja PlayerArcher.shot_cost()).
 const ARROWS := [
@@ -106,7 +107,9 @@ const ARROW_XP_LEVELS := [12, 30, 60, 100, 160]
 ## Nível máximo: a flecha vira MESTRE e ganha +10% de dano extra.
 const MASTER_BONUS := 0.1
 ## Melhorias do arqueiro exigem também chegar a certas ondas (por nível).
-const UPGRADE_WAVE_REQ := [0, 3, 6, 10, 15, 20]
+const UPGRADE_WAVE_REQ := [0, 2, 4, 6, 9, 12]
+## Abates totais por ponto de "unlock" da flecha (Veneno 8 -> 32 abates no total).
+const KILLS_PER_UNLOCK := 4
 ## Moedas grátis por anúncio premiado no Arsenal (até FREE_COIN_ADS_PER_DAY por dia).
 const FREE_COIN_REWARD := 40
 const FREE_COIN_ADS_PER_DAY := 3
@@ -210,7 +213,7 @@ func add_coins(amount: int) -> void:
 
 
 func player_max_hp() -> float:
-	return 150.0 + 20.0 * upgrade_level("hp")
+	return 120.0 + 20.0 * upgrade_level("hp")
 
 
 func damage_mult() -> float:
@@ -327,7 +330,7 @@ func claim_free_coins() -> void:
 	add_coins(FREE_COIN_REWARD)
 
 
-## Preço para comprar uma flecha ainda bloqueada (sem precisar dos abates seguidos).
+## Preço para comprar uma flecha ainda bloqueada (sem esperar os abates).
 func arrow_unlock_cost(id: String) -> int:
 	return 40 + int(get_arrow(id)["unlock"]) * 4
 
@@ -425,11 +428,29 @@ func select_arrow(id: String) -> void:
 		save_data()
 
 
-## Desbloqueia as flechas cuja meta foi atingida. Retorna as recém-desbloqueadas.
-func check_unlocks(kills_in_a_row: int) -> Array:
+## Abates no total (somando todas as partidas) para liberar a flecha.
+func arrow_kill_goal(def: Dictionary) -> int:
+	return int(def["unlock"]) * KILLS_PER_UNLOCK
+
+
+## Próxima flecha que vai liberar pelos abates (vazio se não há mais).
+func next_unlock() -> Dictionary:
+	for a in ARROWS:
+		if not unlocked.has(a["id"]):
+			return a
+	return {}
+
+
+func kills_to_unlock(def: Dictionary) -> int:
+	return maxi(arrow_kill_goal(def) - total_kills, 1)
+
+
+## Desbloqueia as flechas cuja meta de abates totais foi atingida.
+## Retorna as recém-desbloqueadas.
+func check_unlocks() -> Array:
 	var new_ones: Array = []
 	for a in ARROWS:
-		if kills_in_a_row >= a["unlock"] and not unlocked.has(a["id"]):
+		if total_kills >= arrow_kill_goal(a) and not unlocked.has(a["id"]):
 			unlocked.append(a["id"])
 			# Equipa sozinha se houver espaço livre.
 			equip(a["id"])
@@ -446,6 +467,17 @@ func start_game() -> void:
 
 func add_kill() -> void:
 	total_kills += 1
+
+
+## Fecha o app pelo botão voltar. No Android o encerramento normal do motor
+## (get_tree().quit()) derrubava o app e aparecia "o app parou"; aqui salvamos
+## e encerramos o processo direto, sem passar pelo desligamento que travava.
+func quit_game(tree: SceneTree) -> void:
+	save_data()
+	if OS.get_name() == "Android":
+		OS.kill(OS.get_process_id())
+	else:
+		tree.quit()
 
 
 ## Salva o resultado da partida. Retorna true se for um novo recorde.
@@ -535,6 +567,10 @@ func load_data() -> void:
 	if not loadout.has("normal"):
 		loadout.push_front("normal")
 	loadout.resize(mini(loadout.size(), arrow_slots))
+	# Libera as flechas que o total de abates já alcançou (regra nova).
+	for a in ARROWS:
+		if total_kills >= arrow_kill_goal(a) and not unlocked.has(a["id"]):
+			unlocked.append(a["id"])
 	if not is_equipped(selected_arrow):
 		selected_arrow = "normal"
 

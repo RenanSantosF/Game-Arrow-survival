@@ -61,10 +61,13 @@ func _ready() -> void:
 		box.add_child(UiKit.make_label(tr("Recorde: %d") % GameData.best_score, 32, UiKit.GOLD, 8))
 
 	box.add_child(UiKit.make_label(tr("Onda %d  •  %s") % [wave, era_name], 30, Color(0.7, 0.9, 1.0), 7))
-	var stats := tr("Abates seguidos: %d   •   Na cabeça: %d\nTempo: %d:%02d") % [kills, headshots, int(seconds) / 60, int(seconds) % 60]
+	var stats := tr("Abates: %d   •   Na cabeça: %d\nTempo: %d:%02d") % [kills, headshots, int(seconds) / 60, int(seconds) % 60]
 	box.add_child(UiKit.make_label(stats, 24, Color(0.85, 0.9, 1.0), 6))
 	_coins_label = UiKit.make_label(tr("+%d moedas  (total: %d)") % [coins, GameData.coins], 28, UiKit.GOLD, 7)
 	box.add_child(_coins_label)
+	var next := GameData.next_unlock()
+	if not next.is_empty():
+		box.add_child(UiKit.make_label(tr("Faltam %d abates para a flecha %s!") % [GameData.kills_to_unlock(next), tr(next["name"])], 22, Color(1, 0.85, 0.45), 6))
 	for def in new_arrows:
 		box.add_child(UiKit.make_label(tr("Flecha desbloqueada: %s!") % tr(def["name"]), 26, Color(0.6, 1, 0.5), 6))
 
