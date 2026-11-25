@@ -10,7 +10,7 @@ config_version=5
 
 [admob]
 
-general/android/app_id="ca-app-pub-4311255826061303~9874345303"
+general/android/app_id="ca-app-pub-4311255826061303~8295383759"
 
 [application]
 

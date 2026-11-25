@@ -152,10 +152,13 @@ Regras para não incomodar (`scripts/autoload/ads.gd`):
   - Arsenal → **+40 moedas grátis** (até 3 por dia).
 - **Sem banners.**
 
-> Por enquanto são usados os **IDs de TESTE** do Google (aparece "Test Ad").
-> Antes de publicar: crie o app no AdMob e troque `INTERSTITIAL_ID` e `REWARDED_ID`
-> em `ads.gd` e o **App ID** em `project.godot` (seção `[admob]`,
-> `general/android/app_id`). Isso será feito na Etapa 6.
+> **IDs do AdMob** (app "Arrow Survival"):
+> - App: `ca-app-pub-4311255826061303~8295383759` (`project.godot`, seção `[admob]`)
+> - Intersticial: `ca-app-pub-4311255826061303/3894750536` (`INTERSTITIAL_ID` em `ads.gd`)
+> - Premiado: `ca-app-pub-4311255826061303/5471042733` (`REWARDED_ID` em `ads.gd`)
+>
+> A versão da Play Store (AAB) usa esses blocos reais. O APK de teste do GitHub e as
+> builds de debug usam os IDs de TESTE do Google (aparece "Test Ad").
 
 ---
 
